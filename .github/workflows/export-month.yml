@@ -1,0 +1,55 @@
+# Export mensuel du journal events (CSV gzip, ODbL) dans une Release GitHub events-AAAA-MM.
+# La ligne exports, qui autorise la purge du mois, n'est écrite qu'après la création de la release.
+name: export-month
+
+on:
+  schedule:
+    - cron: '0 4 1 * *'
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Mois AAAA-MM (défaut : mois précédent, heure de Paris)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Mois à exporter
+        env:
+          INPUT_MONTH: ${{ inputs.month }}
+        run: |
+          MONTH="${INPUT_MONTH:-$(TZ=Europe/Paris date -d "$(TZ=Europe/Paris date +%Y-%m-15) -1 month" +%Y-%m)}"
+          [[ "$MONTH" =~ ^[0-9]{4}-(0[1-9]|1[0-2])$ ]] || { echo "mois invalide : $MONTH"; exit 1; }
+          echo "MONTH=$MONTH" >> "$GITHUB_ENV"
+      - name: Refuser d'écraser une release existante
+        run: |
+          if gh release view "events-$MONTH" > /dev/null 2>&1; then
+            echo "la release events-$MONTH existe déjà"; exit 1
+          fi
+      - name: Export
+        run: |
+          npx tsx scripts/export-month.ts "$MONTH" | tee export.log
+          echo "$(tail -n 1 export.log)" >> "$GITHUB_ENV"
+      - name: Release
+        run: |
+          URL=$(gh release create "events-$MONTH" "tmp/events-$MONTH.csv.gz" data/LICENSE-ODbL.txt \
+            --title "Événements TGV $MONTH" \
+            --notes "Journal des événements (retards, suppressions, alertes) des TGV INOUI et OUIGO pour $MONTH, heure de Paris : $ROWS lignes. Licence ODbL 1.0. Contient des informations de SNCF Open Data et de transport.data.gouv.fr, sous licence ODbL. Projet non affilié à SNCF ni à OUIGO.")
+          echo "RELEASE_URL=$URL" >> "$GITHUB_ENV"
+      - name: Enregistrer l'export (autorise la purge)
+        run: npx tsx scripts/record-export.ts "$MONTH" "$RELEASE_URL" "$ROWS"
