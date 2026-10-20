@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { toCsv } from '../supabase/functions/_shared/csv.ts'
-import { monthRangeParis, previousMonthParis } from '../supabase/functions/_shared/month.ts'
+import { isExportableMonth, monthRangeParis, previousMonthParis } from '../supabase/functions/_shared/month.ts'
 
 test('toCsv : échappement RFC 4180', () => {
   expect(toCsv([{ a: 'a,"b"' }], ['a'])).toBe('a\n"a,""b"""\n')
@@ -30,4 +30,17 @@ test('previousMonthParis : mois précédent à Paris', () => {
   // 23:30 UTC le 31 octobre = 00:30 le 1er novembre à Paris
   expect(previousMonthParis(new Date('2026-10-31T23:30:00Z'))).toBe('2026-10')
   expect(previousMonthParis(new Date('2027-01-01T04:00:00Z'))).toBe('2026-12')
+})
+
+test('isExportableMonth : seulement un mois strictement passé à Paris', () => {
+  const now = new Date('2026-11-15T12:00:00Z')
+  expect(isExportableMonth('2026-10', now)).toBe(true)
+  expect(isExportableMonth('2025-12', now)).toBe(true)
+  expect(isExportableMonth('2026-11', now)).toBe(false)
+  expect(isExportableMonth('2026-12', now)).toBe(false)
+  expect(isExportableMonth('2027-01', now)).toBe(false)
+  // 23:30 UTC le 31 octobre = déjà novembre à Paris
+  expect(isExportableMonth('2026-10', new Date('2026-10-31T23:30:00Z'))).toBe(true)
+  expect(isExportableMonth('2026-10', new Date('2026-10-31T22:30:00Z'))).toBe(false)
+  expect(isExportableMonth('2026-1', now)).toBe(false)
 })

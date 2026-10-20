@@ -1,5 +1,8 @@
 # Export mensuel du journal events (CSV gzip, ODbL) dans une Release GitHub events-AAAA-MM.
 # La ligne exports, qui autorise la purge du mois, n'est écrite qu'après la création de la release.
+# Reprise manuelle si la release existe mais pas sa ligne exports (job échoué à la dernière étape) :
+#   npx tsx --env-file=.env.local scripts/record-export.ts AAAA-MM <URL de la release> <nombre de lignes du CSV>
+# (le nombre de lignes figure dans les notes de la release ; il doit être égal à celui du CSV).
 name: export-month
 
 on:
@@ -18,6 +21,9 @@ jobs:
   export:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     env:
       GH_TOKEN: ${{ github.token }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -35,6 +41,8 @@ jobs:
         run: |
           MONTH="${INPUT_MONTH:-$(TZ=Europe/Paris date -d "$(TZ=Europe/Paris date +%Y-%m-15) -1 month" +%Y-%m)}"
           [[ "$MONTH" =~ ^[0-9]{4}-(0[1-9]|1[0-2])$ ]] || { echo "mois invalide : $MONTH"; exit 1; }
+          # seul un mois terminé à Paris est exportable (sinon la purge perdrait des events non exportés)
+          npx tsx scripts/record-export.ts "$MONTH" --check
           echo "MONTH=$MONTH" >> "$GITHUB_ENV"
       - name: Refuser d'écraser une release existante
         run: |
@@ -44,7 +52,7 @@ jobs:
       - name: Export
         run: |
           npx tsx scripts/export-month.ts "$MONTH" | tee export.log
-          echo "$(tail -n 1 export.log)" >> "$GITHUB_ENV"
+          grep -E '^ROWS=[0-9]+$' export.log >> "$GITHUB_ENV"
       - name: Release
         run: |
           URL=$(gh release create "events-$MONTH" "tmp/events-$MONTH.csv.gz" data/LICENSE-ODbL.txt \

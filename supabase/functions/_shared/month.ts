@@ -20,3 +20,8 @@ export function previousMonthParis(now = new Date()): string {
   const [y, m] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(now).split('-').map(Number)
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
 }
+
+// Exportable seulement si le mois est terminé à Paris : enregistrer un mois en cours
+// laisserait la purge supprimer des events insérés après l'export.
+export const isExportableMonth = (month: string, now = new Date()): boolean =>
+  /^\d{4}-(0[1-9]|1[0-2])$/.test(month) && month <= previousMonthParis(now)
