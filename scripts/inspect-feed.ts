@@ -11,9 +11,15 @@ const SA_URL = 'https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-servi
 const GTFS_URL = 'https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData_SNCF_GTFS_NewTripId.zip';
 const GTFS_ZIP = 'tmp/gtfs.zip';
 
-// Marque déduite du trip_id statique (voir docs/findings/2026-10-20-sondage-flux.md).
-const brandOf = (tripId: string) =>
-  tripId.includes(':OUI:') ? 'INOUI' : tripId.includes(':OGO:') ? 'OUIGO' : null;
+// Marque déduite du trip_id (voir BRAND_RULES dans docs/findings/2026-10-20-sondage-flux.md).
+// Les OUIGO Train Classique (:OGO:, numéros 4000-4999) sont exclus.
+const trainNumber = (tripId: string) => Number(tripId.match(/^OCE[A-Z]+?(\d+)/)?.[1]);
+const brandOf = (tripId: string) => {
+  if (tripId.includes(':OUI:')) return 'INOUI';
+  if (!tripId.includes(':OGO:')) return null;
+  const n = trainNumber(tripId);
+  return n >= 4000 && n <= 4999 ? null : 'OUIGO';
+};
 
 async function fetchBytes(url: string): Promise<Uint8Array> {
   const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });

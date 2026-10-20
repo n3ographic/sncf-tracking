@@ -1,19 +1,20 @@
 # Sondage des flux GTFS-RT SNCF — 2026-10-20
 
-Script : `scripts/inspect-feed.ts` (`npm run inspect`). Deux passages : 19:32 UTC (21:32 Paris) et 19:43 UTC (21:43 Paris).
+Script : `scripts/inspect-feed.ts` (`npm run inspect`). Deux passages à ~10 min d'intervalle : 19:32 UTC (21:32 Paris) et 19:43 UTC (21:43 Paris), puis un 3e à 19:46 UTC après fixation de BRAND_RULES (correctif 1). Tous les comptes TGV ci-dessous appliquent la règle finale (Train Classique exclu).
 GTFS statique : `Export_OpenData_SNCF_GTFS_NewTripId.zip`, `feed_version` 2026-10-19, validité 20261019 → 20270331.
 
 ## Résumé (valeurs à reprendre dans les tâches suivantes)
 
 | Question | Réponse |
 |---|---|
-| OUIGO présent dans Trip Updates ? | **Oui** (14 trajets OUIGO sur 110 TGV au 1er passage) → pas de plan B Navitia |
-| Jointure GTFS-RT ↔ statique (TGV) | **100 %** (110/110) par égalité stricte de `trip_id` |
-| Jointure globale (tous trains) | 86,4 % ; les 13,6 % restants sont des trajets `ADDED` (id court, aucun TGV) |
+| OUIGO (TGV) présent dans Trip Updates ? | **Oui** (11 trajets OUIGO TGV sur 107 TGV au 1er passage, 10 sur 100 au 3e) → pas de plan B Navitia |
+| Jointure GTFS-RT ↔ statique (TGV) | **100 %** (107/107, 100/100, 100/100) par égalité stricte de `trip_id` |
+| Jointure globale (tous trains) | 86,4-86,7 % ; le reste = trajets `ADDED` à id court, aucun TGV |
+| Condition d'arrêt « jointure < 95 % » | **Non déclenchée** : évaluée sur le périmètre collecté (TGV INOUI + OUIGO TGV), qui joint à 100 % |
 | `delay` ou `time` ? | **Les deux**, toujours ensemble, sur `arrival` et `departure` |
 | `stop_sequence` dans le flux ? | **Non**, seulement `stop_id` (StopPoint) → jointure par `stop_id` |
 | Lien alertes ↔ trajets | `informed_entity.trip.trip_id` au **format court** `OCESN<numéro>F` |
-| Volume estimé d'events | ~3 200/jour au rythme du soir ; **3 000 à 10 000/jour** en fourchette (voir plus bas) |
+| Volume estimé d'events | ≈ 2 500/jour, extrapolé d'un seul intervalle de 656 s en soirée — à mesurer en Task 5 |
 
 ## BRAND_RULES
 
@@ -25,34 +26,45 @@ OCESN5537F1187_F:OUI:FR:Line::19ea029b-…::87141002:87756056:18:2243:20261115  
 OCESN7853F1187_F:OGO:FR:Line::D1E5AD07-…::87686006:87756056:7:2213:20261212    → OUIGO
 ```
 
-- `:OUI:` → `INOUI` (10 249 trajets au statique) ; `:OGO:` → `OUIGO` (653 trajets).
+### Règle finale (décision de l'auteur : OUIGO Train Classique exclu pour l'instant)
+
+Soit `code` le 2e segment du `trip_id` (séparateur `:`) et `n` le numéro de train, entier formé des chiffres qui suivent le préfixe `OCE<lettres>` (regex `/^OCE[A-Z]+?(\d+)/`, ex. `OCESN5537F…` → 5537) :
+
+1. `code = 'OUI'` → `INOUI` ;
+2. `code = 'OGO'` et `n ∉ [4000, 4999]` → `OUIGO` (TGV OUIGO, numéros 76xx, 77xx, 78xx au statique) ;
+3. `code = 'OGO'` et `4000 ≤ n ≤ 4999` → `null` (OUIGO Train Classique, exclu) ;
+4. tout autre `trip_id` (autres codes, trajets `ADDED` à id court sans `:`) → `null`.
+
+Implémentation de référence : `brandOf` dans `scripts/inspect-feed.ts` (test sur `':OUI:'` / `':OGO:'` dans le `trip_id`).
+
+- Statique : 10 249 trajets `INOUI`, 572 `OUIGO` (TGV), 81 OUIGO Train Classique exclus (routes `434A` Paris - Nantes, `434C` Paris - Rennes, et 9 sur la route `OCEdefault`/« INCONNU », Paris-Austerlitz → Bordeaux). Le 2026-10-20 : 610 TGV prévus (548 INOUI, 62 OUIGO).
+- Flux : 3 OUIGO Train Classique présents à chaque passage (`OCESN4085F`, `OCESN4076F`, `OCESN4097F`), exclus des comptes.
 - Autres codes ignorés : `TER`, `CTE` (car), `IC`, `ICN`, `ICE`, `LYR` (Lyria), `TT`, `CRE`, `NAV`, `TRN`.
-- Cohérence vérifiée : 100 % des `stop_times` des trajets `:OUI:` utilisent des `stop_id` `StopPoint:OCETGV INOUI-<UIC>`, et 100 % des `:OGO:` des `StopPoint:OCEOUIGO-<UIC>`. Le préfixe de `stop_id` est donc une règle équivalente (utile pour le flux RT, qui ne contient pas `route_id`).
-- **Attention OUIGO Train Classique** : 81 trajets `:OGO:` ont un numéro en `40xx` (routes `434A` Paris - Nantes, `434C` Paris - Rennes, et 9 sur la route `OCEdefault`/« INCONNU », Paris-Austerlitz → Bordeaux). Ce ne sont pas des TGV. Les TGV OUIGO sont numérotés `76xx`, `77xx`, `78xx`. Règle proposée : `OUIGO` si `:OGO:` et numéro de train ∉ [4000, 4999] — **à trancher par l'auteur** (inclure ou exclure le Train Classique).
-- Numéro de train = chiffres après `OCESN` dans le `trip_id` (`OCESN5537F…` → 5537).
+- Cohérence vérifiée : 100 % des `stop_times` des trajets `:OUI:` utilisent des `stop_id` `StopPoint:OCETGV INOUI-<UIC>`, et 100 % des `:OGO:` (Train Classique compris) des `StopPoint:OCEOUIGO-<UIC>`. Le préfixe de `stop_id` ne distingue donc pas le Train Classique : la règle par `trip_id` fait foi.
 
 ## Format de `trip_id` et jointure
 
 - Format statique (NewTripId) : `OCESN<numéro>F<agence>_F:<code>:<route_id>::<UIC départ>:<UIC arrivée>:<nb arrêts>:<HHMM arrivée>:<date AAAAMMJJ>`. La date finale n'est **pas** la date de circulation : le même `trip_id` sert pour tout un `service_id` (calendar_dates) ; elle sert seulement à rendre l'id unique.
+- **Jointure et seuil de 95 %** : jointure globale 86,4 % (1er passage), 86,7 % (2e et 3e). Les trajets non joints sont exclusivement des trajets `ADDED` à id court (aucun n'est un TGV, voir ci-dessous). Le seuil du plan s'évalue sur le périmètre collecté (TGV INOUI + OUIGO TGV) : **100 %** à chaque passage → la condition d'arrêt n'est pas déclenchée.
 - Le flux RT reprend exactement le `trip_id` statique pour les trajets planifiés ; la date de circulation est dans `trip.start_date` (AAAAMMJJ), avec `trip.start_time`. Clé `${start_date}|${trip_id}` conforme au plan.
 - Trajets `ADDED` (`trip.schedule_relationship = ADDED`, 98 au 1er passage) : id court (`OCESN29956F`, `OCESN79056R`…), `stop_id` au format `StopArea:OCE<UIC>`, injoignables au statique. Numéros à 3, 5, 6 ou 8 chiffres (cars, TER, trains de substitution) : aucun TGV parmi eux.
 
 ## Trip Updates
 
 - Protobuf ~570 Ko, `gtfs_realtime_version` 2.0, `header.timestamp` renouvelé toutes les ~94 s (1792524717 → 1792524811 → 1792524905) ; deux appels rapprochés renvoient le même timestamp (cas `skipped: 'stale'` de la Task 5).
-- 1er passage : 718 `trip_update`, dont **110 TGV (96 INOUI, 14 OUIGO)**. Le statique prévoit 617 TGV ce jour (548 INOUI, 69 OUIGO) : le flux ne contient que les trajets en cours ou proches (fenêtre glissante) ; un trajet disparaît du flux une fois terminé (4 disparus en 2 min). **Le collecteur doit donc capter le retard au terminus avant la disparition** — avec un cycle de 2 min c'est le cas, mais un trajet jamais vu dans le flux n'aura aucune ligne.
-- `stop_time_update` : 692 pour les TGV ; `arrival.delay` + `arrival.time` présents ensemble (579), `departure.delay` + `departure.time` ensemble (580). Le premier arrêt n'a que `departure`, le terminus que `arrival`, et ponctuellement un arrêt n'a que `departure`. `time` = heure prévue + `delay` (vérifié sur les 3 trajets de la fixture). **On utilise `delay` ; le repli `time − arr_planned` n'est jamais nécessaire en pratique**, mais on le garde (cas de test synthétique pour la Task 5).
+- 1er passage : 718 `trip_update`, dont **107 TGV (96 INOUI, 11 OUIGO)**. Le statique prévoit 610 TGV ce jour (548 INOUI, 62 OUIGO) : le flux ne contient que les trajets en cours ou proches (fenêtre glissante) ; un trajet disparaît du flux une fois terminé (4 disparus en 2 min). **Le collecteur doit donc capter le retard au terminus avant la disparition** — avec un cycle de 2 min c'est le cas, mais un trajet jamais vu dans le flux n'aura aucune ligne.
+- `stop_time_update` (3e passage) : 637 pour les TGV ; `arrival.delay` + `arrival.time` présents ensemble (534), `departure.delay` + `departure.time` ensemble (535). Le premier arrêt n'a que `departure`, le terminus que `arrival`, et ponctuellement un arrêt n'a que `departure`. `time` = heure prévue + `delay` (vérifié sur les 3 trajets de la fixture). **On utilise `delay` ; le repli `time − arr_planned` n'est jamais nécessaire en pratique**, mais on le garde (cas de test synthétique pour la Task 5).
 - `trip_update.delay` : jamais renseigné. `trip_update.timestamp` : toujours.
 - `stop_sequence` : **jamais** renseigné. `stop_id` : toujours, au format `StopPoint:OCETGV INOUI-<UIC>` / `StopPoint:OCEOUIGO-<UIC>`, identique au statique. Aucun TGV ne passe deux fois au même `stop_id` → la correspondance `stop_id → stop_sequence` via `stop_times.txt` est sûre.
-- Sur 100 des 110 TGV, la liste des arrêts RT est identique (mêmes ids, même ordre) à `stop_times`. Les 10 autres ont 1 ou 2 **arrêts ajoutés** en `StopArea:OCE<UIC>` (ex. `StopArea:OCE87703975`, `StopArea:OCE87688887`, détournements) : absents du plan, à ignorer (pas de `stop_sequence` ni d'heure prévue).
-- `schedule_relationship` arrêt : 653 `SCHEDULED`, 39 `SKIPPED` (arrêt supprimé). Trajet : 107 `SCHEDULED`, **3 `CANCELED`** ; un trajet `CANCELED` a tous ses arrêts en `SKIPPED` (avec un `delay` qui reste renseigné et ne doit pas compter).
+- Sur 97 des 107 TGV (1er passage), la liste des arrêts RT est identique (mêmes ids, même ordre) à `stop_times`. Les 10 autres ont 1 ou 2 **arrêts ajoutés** en `StopArea:OCE<UIC>` (ex. `StopArea:OCE87703975`, `StopArea:OCE87688887`, détournements) : absents du plan, à ignorer (pas de `stop_sequence` ni d'heure prévue).
+- `schedule_relationship` arrêt (3e passage) : 598 `SCHEDULED`, 39 `SKIPPED` (arrêt supprimé). Trajet : 97 `SCHEDULED`, **3 `CANCELED`** ; un trajet `CANCELED` a tous ses arrêts en `SKIPPED` (avec un `delay` qui reste renseigné et ne doit pas compter).
 - protobufjs : les champs absents renvoient leur valeur par défaut via le prototype (`delay` = 0). Tester la présence avec `Object.hasOwn(obj, 'delay')`, pas `!= null`.
 
 ## Service Alerts
 
 - Protobuf ~715 Ko, 343-345 entités (`QOM:Broadcast::<id>:LOC`), traductions `fr` toujours, `en/de/es/it/nl` pour ~78 %.
 - `informed_entity` : 6 300 `{trip}`, 240 `{trip, stop_id}`, 2 `{stop_id}` ; **jamais de `route_id`**.
-- `informed_entity.trip.trip_id` est au **format court** `OCESN<numéro><F|R>` (4 540 ids distincts), soit le préfixe du `trip_id` long jusqu'à la lettre qui suit le numéro : `OCESN6153F` ↔ `OCESN6153F1187_F:OUI:…`. Regex : `/^OCE[A-Z]+\d+[A-Z]/`. Égalité stricte avec un `trip_id` TU : 2/4 540 (des `ADDED`). Avec l'id court : **35 TGV sur 110** visés par au moins une alerte.
+- `informed_entity.trip.trip_id` est au **format court** `OCESN<numéro><F|R>` (4 540 ids distincts), soit le préfixe du `trip_id` long jusqu'à la lettre qui suit le numéro : `OCESN6153F` ↔ `OCESN6153F1187_F:OUI:…`. Regex : `/^OCE[A-Z]+\d+[A-Z]/`. Égalité stricte avec un `trip_id` TU : 2/4 540 (des `ADDED`). Avec l'id court : **35 TGV sur 107** (1er passage), 44 sur 100 (2e et 3e) visés par au moins une alerte.
 - Le suffixe `R` (1 055 ids) correspond aux codes `CTE`/`CRE` (cars) ; tous les trains, dont les TGV, sont en `F` (vérifié sur `trips.txt`).
 - Pas de `start_date` dans `informed_entity` : l'alerte vise le numéro de train ; on la rattache au trajet du jour via `active_period`.
 - `cause` : 1 (UNKNOWN), 2 (OTHER), 9 (MAINTENANCE) ; `effect` toujours 8 (UNKNOWN_EFFECT). La cause utile est en texte dans `description_text` (HTML, « `<p>Cause : …</p>` ») ; `header_text` est un titre court (« Votre train est retardé. »).
@@ -79,13 +91,14 @@ Méthode : `inspect-feed.ts` compare le snapshot courant au plus récent snapsho
 
 | Passage | TU (trip_update) | TGV (INOUI/OUIGO) | CANCELED | arrêts TGV | alertes | TGV visés par une alerte |
 |---|---|---|---|---|---|---|
-| 19:32 UTC | 718 | 110 (96/14) | 3 | 692 | 345 | 35 |
-| 19:43 UTC | 649 | 103 (89/14) | 3 | 659 | 339 | 44 |
+| 19:32 UTC | 718 | 107 (96/11) | 3 | 669 | 345 | 35 |
+| 19:43 UTC | 649 | 100 (89/11) | 3 | 636 | 339 | 44 |
+| 19:46 UTC | 617 | 100 (90/10) | 3 | 637 | 334 | 44 |
 
-Changements TGV entre les snapshots `header.timestamp` 1792524811 → 1792525374 (563 s) :
-`first_seen 0, delay 10, stop_cancelled 0, cancelled 0, uncancelled 0, alert_added 10, alert_removed 1` → **21 events en 9,4 min**, 6 trajets sortis du flux. Sur 2,5 min (essai) : 3 events.
+Mesure retenue (règle de marque finale, 3e passage) : changements TGV entre les snapshots `header.timestamp` 1792524905 → 1792525561 (656 s) :
+`first_seen 0, delay 9, stop_cancelled 0, cancelled 0, uncancelled 0, alert_added 10, alert_removed 0` → **19 events en 656 s**, 2 trajets sortis du flux. (Avant correctif, avec le Train Classique compté : 21 events en 563 s.)
 
-Extrapolation brute : 21 × 86 400 / 563 ≈ **3 200 events/jour**. Ce rythme est mesuré un soir (21:35-21:43 Paris) avec ~105 TGV dans le flux ; en journée, davantage de TGV circulent en même temps, et chaque trajet du jour (617 TGV prévus) produit au moins un `first_seen` plus ses retards initiaux. Fourchette retenue : **3 000 à 10 000 events/jour**, soit au plus ~300 000 lignes sur 30 jours glissants — compatible avec le palier gratuit Supabase (500 Mo). À recaler avec le volume horaire réel mesuré en Task 5, Step 7.
+Extrapolation : 19 × 86 400 / 656 ≈ **2 500 events/jour**, à partir d'un seul intervalle de 656 s mesuré en soirée (21:35-21:46 Paris, ~100 TGV dans le flux). Ce chiffre n'est pas représentatif d'une journée entière (pas de mesure en journée ni aux heures de pointe) : **à mesurer en Task 5, Step 7**. À ce rythme, 30 jours glissants représentent ~75 000 lignes `events`, très en deçà du palier gratuit Supabase (500 Mo) ; la marge reste large même si le volume réel est plusieurs fois supérieur, mais seule la mesure de la Task 5 le confirmera.
 
 ## Fixtures pour la Task 5
 
@@ -93,7 +106,7 @@ Extrapolation brute : 21 × 86 400 / 563 ≈ **3 200 events/jour**. Ce rythme es
 
 1. `OCESN5537F…:OUI:…` (INOUI Nancy → Nice) : `delay` et `time` sur 18 arrêts, retard 4 200 s à partir de l'arrêt 1, pas d'alerte.
 2. `OCESN6153F…:OUI:…` (INOUI Paris-Lyon → Marseille) : `CANCELED`, 3 arrêts `SKIPPED`, visé par l'alerte `QOM:Broadcast::1024865877515074777:LOC` (maintenance).
-3. `OCESN7853F…:OGO:…` (OUIGO Paris-Lyon → Nice) : 2 premiers arrêts `SKIPPED`, retard 5 400 s ensuite, l'arrêt Marseille n'a que `departure`, visé par l'alerte `QOM:Broadcast::3926910641521586324:LOC` (crues à Toulon).
+3. `OCESN7853F…:OGO:…` (OUIGO TGV n° 7853, hors plage 4000-4999 : bien un TGV OUIGO, Paris-Lyon → Nice) : 2 premiers arrêts `SKIPPED`, retard 5 400 s ensuite, l'arrêt Marseille n'a que `departure`, visé par l'alerte `QOM:Broadcast::3926910641521586324:LOC` (crues à Toulon).
 
 Aucune entité ne porte `time` sans `delay` : pour le test « `time` sans `delay` », retirer `delay` d'une copie de la fixture.
 
@@ -146,6 +159,6 @@ Conversion : `2026-10-20` est en heure d'été (UTC+2) ; ex. arrivée prévue se
 
 ## Conséquences pour les tâches suivantes
 
-- Task 3 (`brandOf`) : règle `:OUI:` / `:OGO:` sur le `trip_id` (+ décision sur OUIGO Train Classique 40xx).
+- Task 3 (`brandOf`) : règle finale ci-dessus (`:OUI:` → INOUI ; `:OGO:` hors 4000-4999 → OUIGO ; sinon `null`).
 - Task 4 (import statique) : lire `calendar_dates.txt` (pas de `calendar.txt`) ; produire `arrPlanned` indexé par `stop_sequence` **et** garder `stop_id → stop_sequence`, car le flux RT ne donne que `stop_id` ; gérer les heures ≥ 24:00.
 - Task 5 (`snapshotsFromFeed`) : retard = `arrival.delay` (sinon `departure.delay`), présence testée avec `Object.hasOwn` ; ignorer les arrêts `StopArea:` ajoutés ; `SKIPPED` → `'cancelled'` ; `CANCELED` → `cancelled: true` ; alertes rattachées par id court `OCESN<numéro>F` ; `cause` depuis `description_text` fr.
