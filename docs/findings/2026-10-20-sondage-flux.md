@@ -100,6 +100,8 @@ Mesure retenue (règle de marque finale, 3e passage) : changements TGV entre les
 
 Extrapolation : 19 × 86 400 / 656 ≈ **2 500 events/jour**, à partir d'un seul intervalle de 656 s mesuré en soirée (21:35-21:46 Paris, ~100 TGV dans le flux). Ce chiffre n'est pas représentatif d'une journée entière (pas de mesure en journée ni aux heures de pointe) : **à mesurer en Task 5, Step 7**. À ce rythme, 30 jours glissants représentent ~75 000 lignes `events`, très en deçà du palier gratuit Supabase (500 Mo) ; la marge reste large même si le volume réel est plusieurs fois supérieur, mais seule la mesure de la Task 5 le confirmera.
 
+**Mesure Task 5 (2026-10-20, collecteur en production)** : 1er passage 20:09 UTC = 346 events d'amorçage pour 71 trajets (≈ 4,9 par trajet : `first_seen` + retards et suppressions déjà présents) ; puis, en régime établi, 4 events (2 `delay`, 2 `alert_removed`) entre les flux 1792526966 → 1792527808 (842 s, 22:09-22:23 Paris, 59-70 TGV dans le flux) → **≈ 17 events/h de changements**. Extrapolation journalière : ≈ 600 TGV/jour × 4,9 d'amorçage ≈ 2 900, plus ≈ 410 de changements (17 × 24) → **≈ 3 300 events/jour**. Mesure de fin de soirée, à refaire en journée.
+
 ## Fixtures pour la Task 5
 
 `tests/fixtures/trip-updates.json` et `tests/fixtures/service-alerts.json` : `FeedMessage.toObject(msg, { longs: String })` (enums numériques, champs absents omis) du snapshot 19:33:24 UTC, avec l'en-tête d'origine et 3 entités. `start_date` = `20261020` pour les trois.
