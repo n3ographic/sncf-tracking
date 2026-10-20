@@ -1,0 +1,98 @@
+// Collecteur GTFS-RT SNCF, appelé toutes les 2 min par pg_cron. N'écrit que des changements.
+import GtfsRealtimeBindings from 'npm:gtfs-realtime-bindings@1.1.1'
+import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
+import { alertTexts, collectChanges, plannedOf, snapshotsFromFeed, type TripContext } from '../_shared/snapshot.ts'
+import type { PlannedStopTimes } from '../_shared/types.ts'
+
+const { FeedMessage, FeedEntity } = GtfsRealtimeBindings.transit_realtime
+const TU_URL = 'https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates'
+const SA_URL = 'https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-service-alerts'
+const TGV = /:(OUI|OGO):/
+const TO_OBJECT = { longs: String }
+
+const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+  auth: { persistSession: false },
+})
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+
+const setError = (msg: string) => db.from('collector_state').upsert({ id: 1, last_error: msg.slice(0, 1000) })
+
+async function fetchFeed(url: string) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(20_000) })
+  if (!res.ok) throw new Error(`${url} : HTTP ${res.status}`)
+  return FeedMessage.decode(new Uint8Array(await res.arrayBuffer()))
+}
+
+Deno.serve(async (req) => {
+  const { data: authorized, error: authError } = await db.rpc('collector_secret_ok', {
+    candidate: req.headers.get('x-collector-secret') ?? '',
+  })
+  if (authError) return json({ error: 'vérification du secret impossible' }, 500)
+  if (authorized !== true) return json({ error: 'unauthorized' }, 401)
+
+  // Flux indisponible ou illisible : seul last_error est écrit.
+  let tu, sa
+  try {
+    ;[tu, sa] = await Promise.all([fetchFeed(TU_URL), fetchFeed(SA_URL)])
+    if (!Number(tu.header?.timestamp)) throw new Error('Trip Updates : header.timestamp absent')
+  } catch (e) {
+    const msg = `flux : ${(e as Error).message}`
+    await setError(msg)
+    return json({ error: msg }, 502)
+  }
+
+  const fail = async (step: string, e: { message: string }) => {
+    const msg = `${step} : ${e.message}`
+    await setError(msg)
+    return json({ error: msg }, 500)
+  }
+
+  const feedTs = Number(tu.header.timestamp)
+  const { data: state, error: stateError } = await db.from('collector_state').select('last_feed_ts').eq('id', 1).maybeSingle()
+  if (stateError) return fail('collector_state', stateError)
+  if (state && Number(state.last_feed_ts) === feedTs) return json({ trips: 0, events: 0, skipped: 'stale' })
+
+  // Décodage objet limité aux TGV (marque lisible dans le trip_id) pour épargner le CPU.
+  const feed = {
+    header: { timestamp: String(feedTs) },
+    entity: tu.entity.filter((e) => TGV.test(e.tripUpdate?.trip?.tripId ?? '')).map((e) => FeedEntity.toObject(e, TO_OBJECT)),
+  }
+  const alerts = FeedMessage.toObject(sa, TO_OBJECT)
+
+  const keys = feed.entity.flatMap((e: any) => {
+    const m = /^(\d{4})(\d{2})(\d{2})$/.exec(e.tripUpdate?.trip?.startDate ?? '')
+    return m ? [[`${m[1]}-${m[2]}-${m[3]}`, e.tripUpdate.trip.tripId]] : []
+  })
+  const { data: rows, error: ctxError } = await db.rpc('collector_context', {
+    p_service_dates: keys.map((k) => k[0]),
+    p_trip_ids: keys.map((k) => k[1]),
+  })
+  if (ctxError) return fail('collector_context', ctxError)
+
+  const contexts = new Map<string, TripContext>()
+  const planned = new Map<string, PlannedStopTimes>()
+  for (const c of rows as TripContext[]) {
+    const k = `${c.service_date}|${c.trip_id}`
+    contexts.set(k, c)
+    planned.set(k, plannedOf(c))
+  }
+
+  const now = new Date().toISOString()
+  const snaps = snapshotsFromFeed(feed, alerts, planned)
+  const { events, circulations } = collectChanges(snaps, contexts, alertTexts(alerts), new Date(feedTs * 1000).toISOString(), now)
+
+  if (events.length) {
+    const { error } = await db.from('events').insert(events)
+    if (error) return fail('events', error)
+  }
+  if (circulations.length) {
+    const { error } = await db.from('circulations').upsert(circulations, { onConflict: 'service_date,trip_id' })
+    if (error) return fail('circulations', error)
+  }
+  const { error } = await db.from('collector_state').upsert({ id: 1, last_feed_ts: feedTs, last_run_at: now, last_error: null })
+  if (error) return fail('collector_state', error)
+
+  return json({ trips: circulations.length, events: events.length })
+})

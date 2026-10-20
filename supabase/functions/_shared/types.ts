@@ -22,8 +22,15 @@ export interface EventRow {
   value: Record<string, unknown>
 }
 
-// arrPlanned : stop_sequence -> heure ISO.
-export interface PlannedStopTimes { serviceDate: string; tripId: string; arrPlanned: Record<string, string> }
+// arrPlanned / depPlanned : stop_sequence -> heure ISO. stopSeqById : stop_id -> stop_sequence,
+// car le flux RT ne donne que stop_id (Task 5).
+export interface PlannedStopTimes {
+  serviceDate: string
+  tripId: string
+  arrPlanned: Record<string, string>
+  depPlanned: Record<string, string>
+  stopSeqById: Record<string, number>
+}
 
 // Équivaut à ReturnType<typeof transit_realtime.FeedMessage.toObject> (protobufjs type toObject
 // en { [k: string]: any }) ; écrit en dur pour ne pas importer gtfs-realtime-bindings côté Deno.
@@ -42,6 +49,23 @@ export interface TripPlannedRow {
   dest_stop_id: string | null
   dep_planned: string | null
   arr_planned: string | null
+}
+
+export interface CirculationRow {
+  service_date: string
+  trip_id: string
+  brand: Brand
+  axis: Axis
+  train_number: string
+  arr_planned: string | null
+  cancelled: boolean
+  stop_delays: Record<string, number | 'cancelled'>
+  terminus_delay_s: number | null
+  max_delay_s: number | null
+  alert_ids: string[]
+  cause: string | null
+  first_seen_at: string
+  last_seen_at: string
 }
 
 export interface StopTimePlannedRow {
