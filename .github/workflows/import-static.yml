@@ -1,4 +1,5 @@
-# Import quotidien du GTFS statique (horaires théoriques INOUI/OUIGO, J à J+2).
+# Import quotidien du GTFS statique (horaires théoriques INOUI/OUIGO, J à J+2),
+# puis contrôle du collecteur : un échec du job déclenche le courriel de GitHub à l'auteur.
 name: import-static
 
 on:
@@ -18,6 +19,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run import:static
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Contrôle du collecteur (dernier passage < 10 min, last_error vide)
+        if: always()
+        run: npx tsx scripts/check-collector.ts
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

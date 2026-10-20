@@ -41,15 +41,19 @@ const { stops, trips, stopTimes } = buildPlanned({
 }, dates)
 console.log(`dates : ${dates.join(', ')}`)
 
-// Remplacement complet des dates importées : un trajet retiré du flux ne doit pas rester.
-for (const table of ['stop_times_planned', 'trips_planned']) {
-  const { error } = await db.from(table).delete().in('service_date', dates)
-  if (error) throw new Error(`purge ${table} ${dates.join(',')} : ${error.message}`)
-}
+// Jamais de suppression de trajet : upsert du nouvel import (horodaté), puis mark_removed marque en une
+// transaction les trajets absents (removed_at) — souvent des suppressions tardives que le collecteur doit voir.
+// Un échec entre les deux étapes laisse le plan précédent intact (au pire avec des trajets en plus).
+const importAt = new Date().toISOString()
+const stamp = <T extends object>(rows: T[]) => rows.map((r) => ({ ...r, last_import_at: importAt }))
 
 await upsert('stops', stops, 'stop_id')
-await upsert('trips_planned', trips, 'service_date,trip_id')
-await upsert('stop_times_planned', stopTimes, 'service_date,trip_id,stop_sequence')
+await upsert('trips_planned', stamp(trips), 'service_date,trip_id')
+await upsert('stop_times_planned', stamp(stopTimes), 'service_date,trip_id,stop_sequence')
+
+const { data: marked, error: markError } = await db.rpc('mark_removed', { p_service_dates: dates, p_import_at: importAt })
+if (markError) throw new Error(`mark_removed : ${markError.message}`)
+console.table(marked)
 
 const { error } = await db.from('stop_times_planned').delete().lt('service_date', parisDay(-1))
 if (error) throw new Error(`purge stop_times_planned : ${error.message}`)

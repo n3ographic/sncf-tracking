@@ -3,6 +3,7 @@ import GtfsRealtimeBindings from 'npm:gtfs-realtime-bindings@1.1.1'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
 import { alertTexts, collectChanges, plannedOf, snapshotsFromFeed, type TripContext } from '../_shared/snapshot.ts'
 import type { PlannedStopTimes } from '../_shared/types.ts'
+import { runWarning } from '../_shared/health.ts'
 
 const { FeedMessage, FeedEntity } = GtfsRealtimeBindings.transit_realtime
 const TU_URL = 'https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates'
@@ -50,10 +51,17 @@ Deno.serve(async (req) => {
   }
 
   const feedTs = Number(tu.header.timestamp)
+  const now = new Date().toISOString()
   const { data: state, error: stateError } = await db.from('collector_state').select('last_feed_ts').eq('id', 1).maybeSingle()
   if (stateError) return fail('collector_state', stateError)
   // Flux figé, ou plus ancien qu'un flux déjà appliqué : rien à écrire (même règle que collector_apply).
-  if (state?.last_feed_ts != null && feedTs <= Number(state.last_feed_ts)) return json({ trips: 0, events: 0, skipped: 'stale' })
+  // Seul last_run_at est touché : la supervision distingue « cron arrêté » de « flux figé ».
+  const prevFeedTs = state?.last_feed_ts == null ? null : Number(state.last_feed_ts)
+  if (prevFeedTs != null && feedTs <= prevFeedTs) {
+    const { error: touchError } = await db.from('collector_state').update({ last_run_at: now }).eq('id', 1)
+    if (touchError) return fail('collector_state', touchError)
+    return json({ trips: 0, events: 0, skipped: 'stale' })
+  }
 
   // Décodage objet limité aux TGV (marque lisible dans le trip_id) pour épargner le CPU.
   const feed = {
@@ -80,16 +88,25 @@ Deno.serve(async (req) => {
     planned.set(k, plannedOf(c))
   }
 
-  const now = new Date().toISOString()
+  const parisToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date())
+  const { count: plannedToday, error: countError } = await db.from('trips_planned')
+    .select('trip_id', { count: 'exact', head: true }).eq('service_date', parisToday).is('removed_at', null)
+  if (countError) return fail('trips_planned', countError)
+
   const snaps = snapshotsFromFeed(feed, alerts, planned)
   const { events, circulations } = collectChanges(snaps, contexts, alertTexts(alerts), new Date(feedTs * 1000).toISOString(), now)
+
+  const tgvEntities = feed.entity.length
+  const warning = runWarning({ tgvEntities, matched: snaps.length, plannedToday: plannedToday ?? 0 })
+  console.log(`collect : ${tgvEntities} entités TGV, ${snaps.length} rapprochées du plan${warning ? ` ; ${warning}` : ''}`)
 
   // Une seule transaction : events, circulations, collector_state (voir migration collector_apply).
   const { data: applied, error } = await db.rpc('collector_apply', {
     p_events: events, p_circs: circulations, p_feed_ts: feedTs, p_now: now,
+    p_prev_feed_ts: prevFeedTs, p_warning: warning,
   })
   if (error) return fail('collector_apply', error)
-  if (applied === 'stale') return json({ trips: 0, events: 0, skipped: 'stale' })
+  if (applied === 'stale' || applied === 'conflict') return json({ trips: 0, events: 0, tgv_entities: tgvEntities, skipped: applied })
 
-  return json({ trips: circulations.length, events: events.length })
+  return json({ trips: circulations.length, events: events.length, tgv_entities: tgvEntities, matched: snaps.length, warning })
 })

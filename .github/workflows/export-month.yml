@@ -24,10 +24,9 @@ jobs:
     defaults:
       run:
         shell: bash
+    # Secrets Supabase passés seulement aux étapes qui lisent ou écrivent la base.
     env:
       GH_TOKEN: ${{ github.token }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +37,8 @@ jobs:
       - name: Mois à exporter
         env:
           INPUT_MONTH: ${{ inputs.month }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           MONTH="${INPUT_MONTH:-$(TZ=Europe/Paris date -d "$(TZ=Europe/Paris date +%Y-%m-15) -1 month" +%Y-%m)}"
           [[ "$MONTH" =~ ^[0-9]{4}-(0[1-9]|1[0-2])$ ]] || { echo "mois invalide : $MONTH"; exit 1; }
@@ -50,6 +51,9 @@ jobs:
             echo "la release events-$MONTH existe déjà"; exit 1
           fi
       - name: Export
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           npx tsx scripts/export-month.ts "$MONTH" | tee export.log
           grep -E '^ROWS=[0-9]+$' export.log >> "$GITHUB_ENV"
@@ -60,4 +64,7 @@ jobs:
             --notes "Journal des événements (retards, suppressions, alertes) des TGV INOUI et OUIGO pour $MONTH, heure de Paris : $ROWS lignes. Licence ODbL 1.0. Contient des informations de SNCF Open Data et de transport.data.gouv.fr, sous licence ODbL. Projet non affilié à SNCF ni à OUIGO.")
           echo "RELEASE_URL=$URL" >> "$GITHUB_ENV"
       - name: Enregistrer l'export (autorise la purge)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npx tsx scripts/record-export.ts "$MONTH" "$RELEASE_URL" "$ROWS"
