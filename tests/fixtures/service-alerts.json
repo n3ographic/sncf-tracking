@@ -1,0 +1,161 @@
+{
+  "header": {
+    "gtfsRealtimeVersion": "1.0",
+    "incrementality": 0,
+    "timestamp": "1792524736"
+  },
+  "entity": [
+    {
+      "id": "QOM:Broadcast::3926910641521586324:LOC",
+      "alert": {
+        "activePeriod": [
+          {
+            "start": "1792504140",
+            "end": "1792527180"
+          }
+        ],
+        "informedEntity": [
+          {
+            "trip": {
+              "tripId": "OCESN7853F"
+            }
+          }
+        ],
+        "cause": 2,
+        "headerText": {
+          "translation": [
+            {
+              "text": "Bitte beachten Sie, dass einige Bahnhöfe nicht angefahren werden",
+              "language": "de"
+            },
+            {
+              "text": "Attention, certaines gares non desservies",
+              "language": "fr"
+            },
+            {
+              "text": "Atención: algunas estaciones no cuentan con servicio",
+              "language": "es"
+            },
+            {
+              "text": "Please note: Some stations are not served",
+              "language": "en"
+            },
+            {
+              "text": "Attenzione: alcune stazioni non sono servite",
+              "language": "it"
+            },
+            {
+              "text": "Let op: sommige stations worden niet aangedaan",
+              "language": "nl"
+            }
+          ]
+        },
+        "descriptionText": {
+          "translation": [
+            {
+              "text": "<p>   </p><p>Ursache: Starke Regenfälle oder Hochwasser, die die Gleise und die Fahrgeschwindigkeit der Züge in Toulon beeinträchtigen.</p><p>  </p>",
+              "language": "de"
+            },
+            {
+              "text": "<p></p><p>Cause : fortes précipitations pluvieuses ou crues affectant les voies et la vitesse des trains à TOULON.</p><p>  </p>",
+              "language": "fr"
+            },
+            {
+              "text": "<p>   </p><p>Causa: fuertes lluvias o crecidas que afectan a las vías y a la velocidad de los trenes en Toulon.</p><p>  </p>",
+              "language": "es"
+            },
+            {
+              "text": "<p>   </p><p>Cause: Heavy rainfall or flooding affecting the tracks and train speeds in Toulon.</p><p>  </p>",
+              "language": "en"
+            },
+            {
+              "text": "<p>   </p><p>Causa: forti piogge o piene che incidono sui binari e sulla velocità dei treni a Toulon.</p><p>  </p>",
+              "language": "it"
+            },
+            {
+              "text": "<p>   </p><p>Oorzaak: hevige regenval of hoogwater, waardoor de sporen en de snelheid van de treinen in Toulon worden beïnvloed.</p><p>  </p>",
+              "language": "nl"
+            }
+          ]
+        },
+        "severityLevel": 2
+      }
+    },
+    {
+      "id": "QOM:Broadcast::1024865877515074777:LOC",
+      "alert": {
+        "activePeriod": [
+          {
+            "start": "1792520460",
+            "end": "1792528800"
+          }
+        ],
+        "informedEntity": [
+          {
+            "trip": {
+              "tripId": "OCESN6153F"
+            }
+          }
+        ],
+        "cause": 2,
+        "headerText": {
+          "translation": [
+            {
+              "text": "Ihr Zug hat Verspätung.",
+              "language": "de"
+            },
+            {
+              "text": "Votre train est retardé.",
+              "language": "fr"
+            },
+            {
+              "text": "El tren lleva retraso.",
+              "language": "es"
+            },
+            {
+              "text": "Your train is delayed.",
+              "language": "en"
+            },
+            {
+              "text": "Il vostro treno è in ritardo.",
+              "language": "it"
+            },
+            {
+              "text": "Uw trein heeft vertraging.",
+              "language": "nl"
+            }
+          ]
+        },
+        "descriptionText": {
+          "translation": [
+            {
+              "text": "<p>Grund: An Ihrem Zug wurdenzwischen PARIS Gare de Lyonund Marseille Saint-Charles Wartungsarbeiten durchgeführt.</p><p>Um mehr über die Bewältigung dieses Vorfalls zu erfahren, klicken Sie bitte auf:<b><a href=\"https://www.sncf-voyageurs.com/medias-publics/2024-01/panne-de-train_2.jpg\">Eine Zugstörung</a></b></p>",
+              "language": "de"
+            },
+            {
+              "text": "<p>Cause : votre train a fait l'objet d'une intervention de maintenance entre PARIS - GARE DE LYON et MARSEILLE SAINT-CHARLES.</p><p>Pour mieux comprendre la gestion de cet incident, veuillez cliquer sur : <b><a href=\"https://www.sncf-voyageurs.com/medias-publics/2024-01/panne-de-train_2.jpg\">panne de train</a></b></p>",
+              "language": "fr"
+            },
+            {
+              "text": "<p>Motivo: el tren ha sido objeto de una intervención de mantenimientoentre PARÍS Gare de Lyony MARSELLA Saint-Charles.</p><p>Para comprender mejor cómo se ha gestionado este incidente, haz clic en:<b><a href=\"https://www.sncf-voyageurs.com/medias-publics/2024-01/panne-de-train_2.jpg\">avería de un tren</a></b></p>",
+              "language": "es"
+            },
+            {
+              "text": "<p>Reason: Your train underwent maintenancebetween PARIS Gare de Lyonand MARSEILLE Saint-Charles.</p><p>To better understand how this incident was handled, please click on:<b><a href=\"https://www.sncf-voyageurs.com/medias-publics/2024-01/panne-de-train_2.jpg\">Train breakdown</a></b></p>",
+              "language": "en"
+            },
+            {
+              "text": "<p>Motivo: il vostro treno è stato sottoposto a un intervento di manutenzionetra PARIGI Gare de Lyone Marsiglia Saint-Charles.</p><p>Per comprendere meglio la gestione di questo incidente, clicca su:<b><a href=\"https://www.sncf-voyageurs.com/medias-publics/2024-01/panne-de-train_2.jpg\">guasto al treno</a></b></p>",
+              "language": "it"
+            },
+            {
+              "text": "<p>Oorzaak: de trein heefttussen Parijs Gare de Lyonen Marseille Saint-Charles een onderhoudsbeurt ondergaan.</p><p>Klik hier voor meer informatie over de afhandeling van dit incident:<b><a href=\"https://www.sncf-voyageurs.com/medias-publics/2024-01/panne-de-train_2.jpg\">een defecte trein</a></b></p>",
+              "language": "nl"
+            }
+          ]
+        },
+        "severityLevel": 2
+      }
+    }
+  ]
+}

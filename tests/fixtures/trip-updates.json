@@ -1,0 +1,334 @@
+{
+  "header": {
+    "gtfsRealtimeVersion": "1.0",
+    "incrementality": 0,
+    "timestamp": "1792524717"
+  },
+  "entity": [
+    {
+      "id": "OCESN5537F1187_F:OUI:FR:Line::19ea029b-6782-421a-8481-7470f5718e47::87141002:87756056:18:2243:20261115",
+      "tripUpdate": {
+        "trip": {
+          "tripId": "OCESN5537F1187_F:OUI:FR:Line::19ea029b-6782-421a-8481-7470f5718e47::87141002:87756056:18:2243:20261115",
+          "startTime": "12:26:00",
+          "startDate": "20261020"
+        },
+        "stopTimeUpdate": [
+          {
+            "departure": {
+              "delay": 0,
+              "time": "1792491960"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87141002"
+          },
+          {
+            "arrival": {
+              "delay": 0,
+              "time": "1792495740"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792500420"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87212027"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792501980"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792502160"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87182014"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792504020"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792504260"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87182063"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792505580"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792505820"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87300822"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792507200"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792507560"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87300863"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792509240"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792510020"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87713040"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792511220"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792511400"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87713545"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792516140"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792516560"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87723197"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792520280"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792520460"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87318964"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792521720"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792521900"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87319012"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792522620"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792523460"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87751008"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792526040"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792526280"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87755009"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792528680"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792528860"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87755447"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792529700"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792529880"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87757526"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792531200"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792531440"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87757625"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792531920"
+            },
+            "departure": {
+              "delay": 4200,
+              "time": "1792532100"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87757674"
+          },
+          {
+            "arrival": {
+              "delay": 4200,
+              "time": "1792533180"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87756056"
+          }
+        ],
+        "timestamp": "1792504709"
+      }
+    },
+    {
+      "id": "OCESN6153F1187_F:OUI:FR:Line::BAF1DE9A-72EC-4064-8BE9-C4EFF292CB6A::87686006:87755009:3:2210:20261211",
+      "tripUpdate": {
+        "trip": {
+          "tripId": "OCESN6153F1187_F:OUI:FR:Line::BAF1DE9A-72EC-4064-8BE9-C4EFF292CB6A::87686006:87755009:3:2210:20261211",
+          "startTime": "18:10:00",
+          "startDate": "20261020",
+          "scheduleRelationship": 3
+        },
+        "stopTimeUpdate": [
+          {
+            "departure": {
+              "delay": 0,
+              "time": "1792512600"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87686006",
+            "scheduleRelationship": 1
+          },
+          {
+            "arrival": {
+              "delay": 1800,
+              "time": "1792525380"
+            },
+            "departure": {
+              "delay": 1800,
+              "time": "1792526220"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87751008",
+            "scheduleRelationship": 1
+          },
+          {
+            "arrival": {
+              "delay": 1800,
+              "time": "1792528800"
+            },
+            "stopId": "StopPoint:OCETGV INOUI-87755009",
+            "scheduleRelationship": 1
+          }
+        ],
+        "timestamp": "1792516950"
+      }
+    },
+    {
+      "id": "OCESN7853F1187_F:OGO:FR:Line::D1E5AD07-58C1-456A-B4E2-928E91061B0B::87686006:87756056:7:2213:20261212",
+      "tripUpdate": {
+        "trip": {
+          "tripId": "OCESN7853F1187_F:OGO:FR:Line::D1E5AD07-58C1-456A-B4E2-928E91061B0B::87686006:87756056:7:2213:20261212",
+          "startTime": "16:10:00",
+          "startDate": "20261020"
+        },
+        "stopTimeUpdate": [
+          {
+            "departure": {
+              "delay": 0,
+              "time": "1792505400"
+            },
+            "stopId": "StopPoint:OCEOUIGO-87686006",
+            "scheduleRelationship": 1
+          },
+          {
+            "arrival": {
+              "delay": 0,
+              "time": "1792513380"
+            },
+            "departure": {
+              "delay": 0,
+              "time": "1792513680"
+            },
+            "stopId": "StopPoint:OCEOUIGO-87763029",
+            "scheduleRelationship": 1
+          },
+          {
+            "departure": {
+              "delay": 5400,
+              "time": "1792525500"
+            },
+            "stopId": "StopPoint:OCEOUIGO-87755009"
+          },
+          {
+            "arrival": {
+              "delay": 5400,
+              "time": "1792527720"
+            },
+            "departure": {
+              "delay": 5400,
+              "time": "1792527900"
+            },
+            "stopId": "StopPoint:OCEOUIGO-87755447"
+          },
+          {
+            "arrival": {
+              "delay": 5400,
+              "time": "1792530120"
+            },
+            "departure": {
+              "delay": 5400,
+              "time": "1792530360"
+            },
+            "stopId": "StopPoint:OCEOUIGO-87757625"
+          },
+          {
+            "arrival": {
+              "delay": 5400,
+              "time": "1792531020"
+            },
+            "departure": {
+              "delay": 5400,
+              "time": "1792531260"
+            },
+            "stopId": "StopPoint:OCEOUIGO-87757674"
+          },
+          {
+            "arrival": {
+              "delay": 5400,
+              "time": "1792532580"
+            },
+            "stopId": "StopPoint:OCEOUIGO-87756056"
+          }
+        ],
+        "timestamp": "1792524180"
+      }
+    }
+  ]
+}
