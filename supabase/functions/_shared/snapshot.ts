@@ -48,17 +48,27 @@ export const baseTripId = (tripId: string) => tripId.replace(/:[0-9]{8}$/, '')
 
 // Clé `${serviceDate}|${tripId}` ; trajets absents de planned et arrêts hors plan ignorés.
 // Jointure exacte d'abord, sinon sur baseTripId ; l'instantané porte le trip_id planifié.
+// Un seul instantané par trajet planifié : exact > base, puis trip_update.timestamp le plus récent,
+// puis trip_id RT le plus petit. Entre deux variantes planifiées de même base : le trip_id le plus petit.
 export function snapshotsFromFeed(feed: DecodedFeed, alerts: DecodedFeed, planned: Map<string, PlannedStopTimes>): TripSnapshot[] {
   const byTrip = alertsByTrip(alerts, Number(feed.header?.timestamp))
-  const byBase = new Map([...planned.values()].map((p) => [`${p.serviceDate}|${baseTripId(p.tripId)}`, p]))
-  const out: TripSnapshot[] = []
+  const byBase = new Map<string, PlannedStopTimes>()
+  for (const p of [...planned.values()].sort((a, b) => (a.tripId < b.tripId ? -1 : 1))) {
+    const k = `${p.serviceDate}|${baseTripId(p.tripId)}`
+    if (!byBase.has(k)) byBase.set(k, p)
+  }
+  type Pick = { snap: TripSnapshot; exact: boolean; ts: number; rtTripId: string }
+  const better = (a: Pick, b: Pick) =>
+    a.exact !== b.exact ? a.exact : a.ts !== b.ts ? a.ts > b.ts : a.rtTripId < b.rtTripId
+  const picks = new Map<string, Pick>()
   for (const e of feed.entity ?? []) {
     const tu = e.tripUpdate
     // Une entité mal formée ne doit pas faire échouer tout le passage.
     if (!tu?.trip?.tripId || !/^\d{8}$/.test(tu.trip.startDate ?? '')) continue
     const serviceDate = serviceDateOf(tu.trip.startDate)
     const rtTripId: string = tu.trip.tripId
-    const p = planned.get(`${serviceDate}|${rtTripId}`) ?? byBase.get(`${serviceDate}|${baseTripId(rtTripId)}`)
+    const exactP = planned.get(`${serviceDate}|${rtTripId}`)
+    const p = exactP ?? byBase.get(`${serviceDate}|${baseTripId(rtTripId)}`)
     if (!p) continue
     const tripId = p.tripId
     const stopDelays: TripSnapshot['stopDelays'] = {}
@@ -73,9 +83,15 @@ export function snapshotsFromFeed(feed: DecodedFeed, alerts: DecodedFeed, planne
       }
     }
     const alertIds = [...new Set([...(byTrip.get(rtTripId) ?? []), ...(byTrip.get(tripId) ?? []), ...(byTrip.get(shortId(rtTripId)) ?? [])])]
-    out.push({ serviceDate, tripId, cancelled: tu.trip.scheduleRelationship === CANCELED, stopDelays, alertIds })
+    const pick: Pick = {
+      snap: { serviceDate, tripId, cancelled: tu.trip.scheduleRelationship === CANCELED, stopDelays, alertIds },
+      exact: exactP !== undefined, ts: Number(tu.timestamp ?? 0), rtTripId,
+    }
+    const key = `${serviceDate}|${tripId}`
+    const cur = picks.get(key)
+    if (!cur || better(pick, cur)) picks.set(key, pick)
   }
-  return out
+  return [...picks.values()].map((x) => x.snap)
 }
 
 const tr = (ts: any): string | null => {

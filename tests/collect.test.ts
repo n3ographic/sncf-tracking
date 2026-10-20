@@ -96,6 +96,41 @@ describe('dérive du trip_id (dernier segment :AAAAMMJJ)', () => {
     expect(events.filter((e) => e.kind === 'first_seen').map((e) => e.trip_id)).toContain(T5537)
   })
 
+  it('deux entités RT pour le même trajet planifié : un seul instantané, le trip_id exact gagne', () => {
+    for (const exactFirst of [true, false]) {
+      const feed = structuredClone(tu)
+      const twin = drifted().entity[0] as any
+      twin.tripUpdate.timestamp = '9999999999' // plus récent, mais jointure par base seulement
+      twin.tripUpdate.stopTimeUpdate.at(-1).arrival.delay = 60
+      feed.entity.splice(exactFirst ? 1 : 0, 0, twin)
+      const snaps = snapshotsFromFeed(feed, sa, planned())
+      expect(snaps.filter((s) => s.tripId === T5537)).toHaveLength(1)
+      expect(by(snaps, T5537).stopDelays['17']).toBe(4200)
+      const { circulations } = collectChanges(snaps, contexts(), alertTexts(sa), OBS, NOW)
+      expect(circulations.filter((c) => c.trip_id === T5537)).toHaveLength(1)
+    }
+  })
+
+  it('deux entités en dérive pour le même trajet : la plus récente gagne, puis le trip_id le plus petit', () => {
+    const a = drifted().entity[0] as any
+    const b = structuredClone(a)
+    b.tripUpdate.trip.tripId = a.tripUpdate.trip.tripId.replace(/:\d{8}$/, ':20261117')
+    b.tripUpdate.stopTimeUpdate.at(-1).arrival.delay = 60
+    const run = (x: any, y: any) => by(snapshotsFromFeed({ header: tu.header, entity: [x, y] }, sa, planned()), T5537).stopDelays['17']
+    a.tripUpdate.timestamp = '100'; b.tripUpdate.timestamp = '200'
+    expect([run(a, b), run(b, a)]).toEqual([60, 60])
+    b.tripUpdate.timestamp = '100' // égalité : ':20261116' < ':20261117'
+    expect([run(a, b), run(b, a)]).toEqual([4200, 4200])
+  })
+
+  it('deux variantes planifiées de même base : choix déterministe (trip_id le plus petit)', () => {
+    const variant = T5537.replace(/:\d{8}$/, ':20261101') // < ':20261115'
+    for (const order of [[T5537, variant], [variant, T5537]]) {
+      const p = new Map(order.map((id) => [`${DATE}|${id}`, { ...plannedOf(ctx(T5537)), tripId: id }]))
+      expect(snapshotsFromFeed(drifted(), sa, p).map((s) => s.tripId)).toEqual([variant])
+    }
+  })
+
   it('le préfixe seul ne suffit pas : un autre trajet reste ignoré', () => {
     const feed = drifted()
     feed.entity[0].tripUpdate.trip.tripId = T5537.replace(':18:2243:', ':18:2244:')
