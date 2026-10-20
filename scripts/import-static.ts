@@ -41,6 +41,12 @@ const { stops, trips, stopTimes } = buildPlanned({
 }, dates)
 console.log(`dates : ${dates.join(', ')}`)
 
+// Remplacement complet des dates importées : un trajet retiré du flux ne doit pas rester.
+for (const table of ['stop_times_planned', 'trips_planned']) {
+  const { error } = await db.from(table).delete().in('service_date', dates)
+  if (error) throw new Error(`purge ${table} ${dates.join(',')} : ${error.message}`)
+}
+
 await upsert('stops', stops, 'stop_id')
 await upsert('trips_planned', trips, 'service_date,trip_id')
 await upsert('stop_times_planned', stopTimes, 'service_date,trip_id,stop_sequence')

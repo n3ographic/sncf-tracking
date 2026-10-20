@@ -23,18 +23,22 @@ function splitLine(line: string): string[] {
     else if (c === ',') { out.push(cur); cur = '' }
     else cur += c
   }
+  if (quoted) throw new Error(`CSV : guillemet non fermé (retour à la ligne dans un champ ?) : ${line.slice(0, 80)}`)
   out.push(cur)
   return out
 }
 
-// ponytail: pas de retour à la ligne dans un champ entre guillemets (absent du flux SNCF).
-function parseCsv(text: string): Row[] {
-  const lines = text.replace(/^﻿/, '').split(/\r?\n/)
+// Retour à la ligne dans un champ entre guillemets non géré : splitLine lève une erreur.
+// keep : ne construit que les lignes dont la colonne col est dans set (stop_times : 82 Mo).
+function parseCsv(text: string, keep?: { col: string; set: { has(v: string): boolean } }): Row[] {
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/)
   const header = splitLine(lines[0])
+  const k = keep ? header.indexOf(keep.col) : -1
   const rows: Row[] = []
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i]) continue
     const cells = splitLine(lines[i])
+    if (keep && !keep.set.has(cells[k])) continue
     const row: Row = {}
     header.forEach((h, j) => { row[h] = cells[j] ?? '' })
     rows.push(row)
@@ -96,8 +100,7 @@ export function buildPlanned(files: GtfsFiles, dates: string[]): {
   }
 
   const byTrip = new Map<string, Row[]>()
-  for (const st of parseCsv(files.stop_times)) {
-    if (!kept.has(st.trip_id)) continue
+  for (const st of parseCsv(files.stop_times, { col: 'trip_id', set: kept })) {
     const list = byTrip.get(st.trip_id) ?? []
     list.push(st)
     byTrip.set(st.trip_id, list)

@@ -55,3 +55,8 @@ test('stops : seulement ceux des trajets importés', () => {
     stop_id: 'StopPoint:OCETGV INOUI-87471003', name: 'Rennes', lat: 48.1, lon: -1.67,
   })
 })
+
+test('CSV : guillemet non fermé → erreur explicite', () => {
+  const bad = { ...files, routes: 'route_id,agency_id,route_short_name\nR1,1187,"Navette\nsuite",x\n' }
+  expect(() => buildPlanned(bad, ['2026-10-20'])).toThrow(/guillemet non fermé/)
+})
