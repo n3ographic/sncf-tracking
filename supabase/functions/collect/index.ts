@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
   const feedTs = Number(tu.header.timestamp)
   const { data: state, error: stateError } = await db.from('collector_state').select('last_feed_ts').eq('id', 1).maybeSingle()
   if (stateError) return fail('collector_state', stateError)
-  if (state && Number(state.last_feed_ts) === feedTs) return json({ trips: 0, events: 0, skipped: 'stale' })
+  // Flux figé, ou plus ancien qu'un flux déjà appliqué : rien à écrire (même règle que collector_apply).
+  if (state?.last_feed_ts != null && feedTs <= Number(state.last_feed_ts)) return json({ trips: 0, events: 0, skipped: 'stale' })
 
   // Décodage objet limité aux TGV (marque lisible dans le trip_id) pour épargner le CPU.
   const feed = {
@@ -83,16 +84,12 @@ Deno.serve(async (req) => {
   const snaps = snapshotsFromFeed(feed, alerts, planned)
   const { events, circulations } = collectChanges(snaps, contexts, alertTexts(alerts), new Date(feedTs * 1000).toISOString(), now)
 
-  if (events.length) {
-    const { error } = await db.from('events').insert(events)
-    if (error) return fail('events', error)
-  }
-  if (circulations.length) {
-    const { error } = await db.from('circulations').upsert(circulations, { onConflict: 'service_date,trip_id' })
-    if (error) return fail('circulations', error)
-  }
-  const { error } = await db.from('collector_state').upsert({ id: 1, last_feed_ts: feedTs, last_run_at: now, last_error: null })
-  if (error) return fail('collector_state', error)
+  // Une seule transaction : events, circulations, collector_state (voir migration collector_apply).
+  const { data: applied, error } = await db.rpc('collector_apply', {
+    p_events: events, p_circs: circulations, p_feed_ts: feedTs, p_now: now,
+  })
+  if (error) return fail('collector_apply', error)
+  if (applied === 'stale') return json({ trips: 0, events: 0, skipped: 'stale' })
 
   return json({ trips: circulations.length, events: events.length })
 })

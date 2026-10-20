@@ -75,6 +75,34 @@ describe('snapshotsFromFeed (compléments)', () => {
   })
 })
 
+describe('dérive du trip_id (dernier segment :AAAAMMJJ)', () => {
+  // Le flux RT peut porter une variante de calendrier différente du statique importé.
+  const drifted = () => {
+    const feed = structuredClone(tu)
+    const t = feed.entity[0].tripUpdate.trip
+    t.tripId = t.tripId.replace(/:\d{8}$/, ':20261116')
+    feed.entity[0].id = t.tripId
+    return feed
+  }
+
+  it('rattache le trajet RT au trajet planifié et garde le trip_id planifié', () => {
+    const feed = drifted()
+    expect(feed.entity[0].tripUpdate.trip.tripId).not.toBe(T5537)
+    const s = by(snapshotsFromFeed(feed, sa, planned()), T5537)
+    expect(s).toBeDefined()
+    expect(s.stopDelays).toEqual(by(snapshotsFromFeed(tu, sa, planned()), T5537).stopDelays)
+    const { events, circulations } = collectChanges(snapshotsFromFeed(feed, sa, planned()), contexts(), alertTexts(sa), OBS, NOW)
+    expect(circulations.map((c) => c.trip_id)).toContain(T5537)
+    expect(events.filter((e) => e.kind === 'first_seen').map((e) => e.trip_id)).toContain(T5537)
+  })
+
+  it('le préfixe seul ne suffit pas : un autre trajet reste ignoré', () => {
+    const feed = drifted()
+    feed.entity[0].tripUpdate.trip.tripId = T5537.replace(':18:2243:', ':18:2244:')
+    expect(snapshotsFromFeed(feed, sa, planned()).map((s) => s.tripId)).toEqual([T6153, T7853])
+  })
+})
+
 describe('alertTexts', () => {
   it('sans description : titre français', () => {
     const alerts = structuredClone(sa)

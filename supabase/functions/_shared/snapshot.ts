@@ -43,18 +43,24 @@ function alertsByTrip(alerts: DecodedFeed, t: number): Map<string, string[]> {
   return m
 }
 
+// trip_id sans son dernier segment :AAAAMMJJ (variante de calendrier, peut différer RT/statique).
+export const baseTripId = (tripId: string) => tripId.replace(/:[0-9]{8}$/, '')
+
 // Clé `${serviceDate}|${tripId}` ; trajets absents de planned et arrêts hors plan ignorés.
+// Jointure exacte d'abord, sinon sur baseTripId ; l'instantané porte le trip_id planifié.
 export function snapshotsFromFeed(feed: DecodedFeed, alerts: DecodedFeed, planned: Map<string, PlannedStopTimes>): TripSnapshot[] {
   const byTrip = alertsByTrip(alerts, Number(feed.header?.timestamp))
+  const byBase = new Map([...planned.values()].map((p) => [`${p.serviceDate}|${baseTripId(p.tripId)}`, p]))
   const out: TripSnapshot[] = []
   for (const e of feed.entity ?? []) {
     const tu = e.tripUpdate
     // Une entité mal formée ne doit pas faire échouer tout le passage.
     if (!tu?.trip?.tripId || !/^\d{8}$/.test(tu.trip.startDate ?? '')) continue
     const serviceDate = serviceDateOf(tu.trip.startDate)
-    const tripId: string = tu.trip.tripId
-    const p = planned.get(`${serviceDate}|${tripId}`)
+    const rtTripId: string = tu.trip.tripId
+    const p = planned.get(`${serviceDate}|${rtTripId}`) ?? byBase.get(`${serviceDate}|${baseTripId(rtTripId)}`)
     if (!p) continue
+    const tripId = p.tripId
     const stopDelays: TripSnapshot['stopDelays'] = {}
     for (const u of tu.stopTimeUpdate ?? []) {
       const seq = p.stopSeqById[u.stopId]
@@ -66,7 +72,7 @@ export function snapshotsFromFeed(feed: DecodedFeed, alerts: DecodedFeed, planne
         if (d !== null) stopDelays[k] = d
       }
     }
-    const alertIds = [...new Set([...(byTrip.get(tripId) ?? []), ...(byTrip.get(shortId(tripId)) ?? [])])]
+    const alertIds = [...new Set([...(byTrip.get(rtTripId) ?? []), ...(byTrip.get(tripId) ?? []), ...(byTrip.get(shortId(rtTripId)) ?? [])])]
     out.push({ serviceDate, tripId, cancelled: tu.trip.scheduleRelationship === CANCELED, stopDelays, alertIds })
   }
   return out
