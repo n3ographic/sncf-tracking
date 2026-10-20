@@ -1,0 +1,4 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
+FR:Line::A:,1187,,Paris - Rennes,,2,,,
+FR:Line::B:,1187,,"Paris - Lyon, Marseille",,2,,,
+FR:Line::C:,1187,TER,Lille - Arras,,2,,,

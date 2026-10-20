@@ -1,0 +1,8 @@
+stop_id,stop_name,stop_desc,stop_lat,stop_lon,zone_id,stop_url,location_type,parent_station
+StopArea:OCE87391003,Paris Montparnasse Hall 1 - 2,,48.84,2.32,,,1,
+StopPoint:OCETGV INOUI-87391003,Paris Montparnasse Hall 1 - 2,,48.84,2.32,,,0,StopArea:OCE87391003
+StopPoint:OCETGV INOUI-87471003,Rennes,,48.10,-1.67,,,0,
+StopPoint:OCEOUIGO-87686006,Paris Gare de Lyon Hall 1 - 2,,48.84,2.37,,,0,
+StopPoint:OCEOUIGO-87751008,Marseille St-Charles,,43.30,5.38,,,0,
+StopPoint:OCETrain TER-87286005,Lille Flandres,,50.63,3.07,,,0,
+StopPoint:OCETrain TER-87342006,Arras,,50.28,2.78,,,0,

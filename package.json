@@ -5,7 +5,8 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "test": "vitest run --passWithNoTests",
-    "inspect": "tsx scripts/inspect-feed.ts"
+    "inspect": "tsx scripts/inspect-feed.ts",
+    "import:static": "tsx scripts/import-static.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.45.4",
