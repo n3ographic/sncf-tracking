@@ -41,7 +41,7 @@ Le schéma est dans `supabase/migrations/`, le code partagé dans `supabase/func
 
 ## API publique
 
-Deux routes en lecture seule (Next.js, dossier `web/`), qui ne lisent la base qu'avec la clé publique.
+Trois routes en lecture seule (Next.js, dossier `web/`), qui ne lisent la base qu'avec la clé publique.
 
 ### `GET /api/stats`
 
@@ -71,6 +71,10 @@ Aucun paramètre (tout paramètre donne une erreur `400`). Trains en circulation
 Un `dep_planned` dans le futur désigne un train annoncé par le flux mais pas encore parti.
 
 Cache : `public, s-maxage=180, stale-while-revalidate=60` (3 min : le collecteur ne passe que toutes les 2 min).
+
+### `GET /api/rules`
+
+Les règles de calcul lues dans la base, en JSON : `generated_at`, `compensation_scale` (barème par marque : `brand`, `from_s`, `pct`, `source_url`, `source_as_of`), `regularity_rule` (`duration_from_s`, `max_delay_exclusive_s`, `source_url`) et `reference_prices` (`brand`, `price_eur_ht`, `seats`, `price_source`, `seats_source`, `as_of`). Aucun paramètre (tout paramètre donne une erreur `400`). Cache : `public, s-maxage=3600, stale-while-revalidate=600` (1 h).
 
 ### Erreurs
 

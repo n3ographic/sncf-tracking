@@ -1,5 +1,6 @@
 import { unwrap, type Result } from './db';
 import { shapeLive, type LiveTrain } from './live';
+import { loadRules } from './rules';
 import { parseStatsParams } from './params';
 import { shapeStats, type Price, type Scale, type StatRow } from './stats';
 
@@ -13,6 +14,7 @@ export type Deps = {
 
 const STATS_CACHE = 'public, s-maxage=900, stale-while-revalidate=300';
 const LIVE_CACHE = 'public, s-maxage=180, stale-while-revalidate=60';
+const RULES_CACHE = 'public, s-maxage=3600, stale-while-revalidate=600';
 
 const json = (body: unknown, status: number, cache: string) =>
   Response.json(body, { status, headers: { 'Cache-Control': cache } });
@@ -54,5 +56,13 @@ export function createLiveHandler(deps: Deps) {
       ]);
       return shapeLive(trains, prices, deps.now()); // generated_at fixé dans l'unité mise en cache
     }), 200, LIVE_CACHE));
+  };
+}
+
+export function createRulesHandler(deps: Deps) {
+  return async (req: Request) => {
+    // Aucun paramètre : une seule clé de cache, refus avant toute lecture de la base.
+    if (new URL(req.url).search !== '') return json({ error: 'aucun paramètre accepté' }, 400, 'no-store');
+    return guarded(async () => json(await loadRules(deps), 200, RULES_CACHE));
   };
 }

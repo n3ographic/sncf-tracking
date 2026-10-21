@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { createLiveHandler, createStatsHandler, type Deps } from '../lib/handlers';
+import { createLiveHandler, createRulesHandler, createStatsHandler, type Deps } from '../lib/handlers';
 import { prices, scale } from './fixtures';
 
 beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}); });
@@ -150,4 +150,43 @@ test('/api/live?x=1 : 400 sans toucher au cache', async () => {
   const { cached } = fakeCache();
   const res = await createLiveHandler({ ...okDeps(), cached })(new Request('http://x/api/live?x=1'));
   expect(res.status).toBe(400); expect(cached).not.toHaveBeenCalled();
+});
+
+const regularityRows = [{ duration_from_s: '0', max_delay_exclusive_s: '300', source_url: 'u' }];
+const rulesDeps = () => ({
+  ...okDeps(),
+  select: vi.fn(async (table: string) => ({
+    data: table === 'reference_prices' ? prices : table === 'compensation_scale' ? scale : regularityRows, error: null,
+  })),
+});
+
+test('rules : 200, quatre clés, nombres, Cache-Control exact, clé et durée du cache', async () => {
+  const { cached } = fakeCache();
+  const res = await createRulesHandler({ ...rulesDeps(), cached })(new Request('http://x/api/rules'));
+  expect(res.status).toBe(200);
+  expect(res.headers.get('cache-control')).toBe('public, s-maxage=3600, stale-while-revalidate=600');
+  const body = await res.json();
+  expect(Object.keys(body).sort()).toEqual(['compensation_scale', 'generated_at', 'reference_prices', 'regularity_rule']);
+  expect(typeof body.reference_prices[0].price_eur_ht).toBe('number');
+  expect(body.regularity_rule[0]).toMatchObject({ duration_from_s: 0, max_delay_exclusive_s: 300 });
+  expect(cached.mock.calls[0].slice(0, 2)).toEqual([['rules', 'v1'], 3600]);
+});
+
+test('/api/rules?x=1 : 400 no-store, avant toute lecture', async () => {
+  const deps = rulesDeps();
+  const res = await createRulesHandler(deps)(new Request('http://x/api/rules?x=1'));
+  expect(res.status).toBe(400);
+  expect(res.headers.get('cache-control')).toBe('no-store');
+  expect(deps.select).not.toHaveBeenCalled();
+});
+
+test('rules : lecture en erreur = 502 no-store, rien de mémorisé, reprise au second appel', async () => {
+  const { cached, store } = fakeCache();
+  const deps = { ...rulesDeps(), cached };
+  deps.select.mockImplementationOnce((async () => ({ data: null, error: { message: 'x' } })) as never);
+  const h = createRulesHandler(deps);
+  const bad = await h(new Request('http://x/api/rules'));
+  expect(bad.status).toBe(502); expect(bad.headers.get('cache-control')).toBe('no-store');
+  expect(store.size).toBe(0);
+  expect((await h(new Request('http://x/api/rules'))).status).toBe(200);
 });
