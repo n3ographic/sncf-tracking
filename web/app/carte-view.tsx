@@ -8,6 +8,7 @@ import {
 } from '../lib/map-model';
 import { makeSegment, type TraceTable } from '../lib/traces';
 import type { Lngl } from '../lib/position';
+import type { Cumul } from '../lib/cumul';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 const REFRESH_MS = 60_000;
@@ -38,6 +39,7 @@ export default function CarteView() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [trains, setTrains] = useState<LiveItem[]>([]);
+  const [cumul, setCumul] = useState<Cumul | null>(null);
   const [lastOk, setLastOk] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -107,6 +109,21 @@ export default function CarteView() {
     return () => { alive = false; };
   }, []);
 
+  // Compteur cumulé : une seule lecture ; en cas d'échec, aucun compteur et aucun message.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/cumul');
+        const d = (await r.json()) as Cumul;
+        if (alive && r.ok && Array.isArray(d.by_brand) && d.days > 0) setCumul(d);
+      } catch {
+        /* pas de compteur */
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   // Données : au montage puis toutes les minutes ; en cas d'échec on garde les derniers trains.
   useEffect(() => {
     let alive = true;
@@ -147,6 +164,11 @@ export default function CarteView() {
           </select>
         </label>
         <p className="carte-count" aria-live="polite">{lateCount(shown)} trains en retard sur {shown.length}</p>
+        {cumul && (
+          <a className="carte-link" href="/tableau" title={`Observé seulement, couverture ${cumul.coverage_pct === null ? '—' : cumul.coverage_pct.toLocaleString('fr-FR')} % des trains prévus`}>
+            Indemnités théoriques cumulées : {Math.round(cumul.cost_eur_ht).toLocaleString('fr-FR')} € HT
+          </a>
+        )}
         <a className="carte-link" href="/tableau">Tableau de bord</a>
         <a className="carte-link" href="/methodologie">Méthodologie</a>
       </div>

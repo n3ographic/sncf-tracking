@@ -5,6 +5,7 @@ import {
   SAMPLE_MIN, TERMINUS_BUCKETS, bucketShares, isSmallSample, monthOptions, sortGroups, suppressionPct,
 } from '../../lib/dashboard-model';
 import type { Group, StatsPayload, Totals } from '../../lib/stats';
+import CumulBanner from './cumul-banner';
 
 const FIXED = [['7d', '7 derniers jours'], ['14d', '14 derniers jours'], ['31d', '31 derniers jours']] as const;
 const DASH = '—';
@@ -73,6 +74,8 @@ export default function TableauView() {
         <h1>Tableau de bord</h1>
         <nav><a href="/">Carte</a> · <a href="/methodologie">Méthodologie</a></nav>
       </header>
+
+      <CumulBanner />
 
       <label className="tb-period">Période
         <select autoComplete="off" value={period} onChange={(e) => setPeriod(e.target.value)}>
