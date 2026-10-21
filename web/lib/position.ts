@@ -9,9 +9,13 @@ export function segment(a: Lngl, b: Lngl): Lngl[] {
   return [a, b];
 }
 
-// Point à la fraction p (0..1) de la longueur de la polyligne (distances en degrés, suffisant à cette échelle).
+// Point à la fraction p (0..1) de la longueur de la polyligne.
 function along(line: Lngl[], p: number): Lngl {
-  const lens = line.slice(1).map((pt, i) => Math.hypot(pt[0] - line[i][0], pt[1] - line[i][1]));
+  // Longitude pondérée par cos(latitude) : un degré de longitude est plus court qu'un degré de latitude.
+  const lens = line.slice(1).map((pt, i) => {
+    const k = Math.cos((((pt[1] + line[i][1]) / 2) * Math.PI) / 180);
+    return Math.hypot((pt[0] - line[i][0]) * k, pt[1] - line[i][1]);
+  });
   let left = lens.reduce((s, l) => s + l, 0) * p;
   for (let i = 0; i < lens.length; i++) {
     if (left <= lens[i] || i === lens.length - 1) {

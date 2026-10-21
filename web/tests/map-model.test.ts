@@ -51,3 +51,11 @@ test('toFeatureCollection : coordonnées, propriétés, trains sans position omi
   expect(f.properties).toEqual({ trip_id: 'a', cls: 'late', stale: false, state: 'moving' });
   expect(toFeatureCollection([], NOW).features).toEqual([]);
 });
+
+test('toFeatureCollection suit le tracé fourni', () => {
+  const path = (): [number, number][] => [[2, 48], [2, 46], [4, 46]]; // deux côtés de 2° : milieu = coude vers [2, 46]
+  const [f] = toFeatureCollection([item({ delay_s: 0 })], NOW, path).features;
+  expect(f.geometry.coordinates[0]).toBeGreaterThan(1.9);
+  expect(f.geometry.coordinates[0]).toBeLessThan(3);
+  expect(f.geometry.coordinates[1]).toBeLessThan(47.9);
+});

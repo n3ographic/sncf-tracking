@@ -55,8 +55,18 @@ test('départ corrigé ≥ arrivée corrigée : arrêt B, sans division par zér
 });
 
 test('le tracé injecté est suivi au prorata de sa longueur', () => {
-  const path = (a: Lngl, b: Lngl): Lngl[] => [a, [2, 46], b]; // 2 puis 2 degrés : longueur 4, milieu = point [2, 46]
-  const e = estimatePosition(train([A, B], 0), at('11:30'), path)!;
+  // Polyligne le long d'un méridien (deux côtés égaux) : le milieu du trajet est le sommet intermédiaire.
+  const path = (a: Lngl, b: Lngl): Lngl[] => [a, [a[0], 47], [a[0], b[1]]];
+  const e = estimatePosition(train([A, { ...B, lon: 2 }], 0), at('11:30'), path)!;
   expect(e.lon).toBeCloseTo(2);
-  expect(e.lat).toBeCloseTo(46);
+  expect(e.lat).toBeCloseTo(47);
+});
+
+test('progression le long d’une polyligne pondérée par la latitude', () => {
+  // À 60° N un degré de longitude vaut la moitié d'un degré de latitude : le coude est atteint au tiers du trajet.
+  const L: LiveStop[] = [{ seq: 1, lon: 0, lat: 60, dep: '2026-11-02T11:00:00Z' }, { seq: 2, lon: 1, lat: 61, arr: '2026-11-02T12:00:00Z' }];
+  const path = (): Lngl[] => [[0, 60], [1, 60], [1, 61]];
+  const e = estimatePosition(train(L, 0), at('11:20'), path)!;
+  expect(e.lon).toBeCloseTo(1, 1);
+  expect(e.lat).toBeCloseTo(60, 1);
 });

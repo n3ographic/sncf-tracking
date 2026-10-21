@@ -1,5 +1,5 @@
 import type { LiveTrain } from './live';
-import { estimatePosition, type PositionState } from './position';
+import { estimatePosition, type Lngl, type PositionState } from './position';
 
 export type LiveItem = LiveTrain & { comp_eur_per_passenger_ref: number };
 export type DelayClass = 'ontime' | 'late' | 'severe' | 'cancelled';
@@ -38,10 +38,10 @@ type Props = { trip_id: string; cls: DelayClass; stale: boolean; state: Position
 export type PointFeature = { type: 'Feature'; geometry: { type: 'Point'; coordinates: [number, number] }; properties: Props };
 export type PointCollection = { type: 'FeatureCollection'; features: PointFeature[] };
 
-export function toFeatureCollection(trains: LiveItem[], now: Date): PointCollection {
+export function toFeatureCollection(trains: LiveItem[], now: Date, path?: (a: Lngl, b: Lngl) => Lngl[]): PointCollection {
   const features: PointFeature[] = [];
   for (const t of trains) {
-    const e = estimatePosition(t, now);
+    const e = estimatePosition(t, now, path);
     if (!e) continue;
     features.push({
       type: 'Feature',
