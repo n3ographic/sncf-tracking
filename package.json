@@ -2,11 +2,14 @@
   "name": "observatoire-tgv",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "inspect": "tsx scripts/inspect-feed.ts",
-    "import:static": "tsx scripts/import-static.ts"
+    "import:static": "tsx scripts/import-static.ts",
+    "build:traces": "tsx --env-file=web/.env.local scripts/build-traces.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.45.4",
