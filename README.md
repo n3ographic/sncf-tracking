@@ -98,6 +98,12 @@ Les règles vivent en base (tables `regularity_rule`, `compensation_scale`, `ref
 
 Le site n'utilise que la clé publique (`SUPABASE_ANON_KEY`), soumise aux droits du rôle `anon`. Projet Vercel : racine `web`, variables `SUPABASE_URL` et `SUPABASE_ANON_KEY`. Supabase est protégé par un cache de données côté serveur (Data Cache de Next.js), indexé par la fenêtre validée : une lecture au plus par fenêtre toutes les 15 min pour `/api/stats`, une par minute pour `/api/live`, quelle que soit l'écriture de l'URL. Une erreur n'y est jamais mémorisée. Les en-têtes `Cache-Control` ci-dessus servent le CDN, qui peut garder plusieurs variantes d'une même URL ; ces variantes ne rappellent pas Supabase. Egress mesuré dans `docs/findings/2026-10-21-mesures-reelles.md`.
 
+## Carte
+
+La page d'accueil affiche les TGV en circulation (MapLibre GL, fond OpenFreeMap, données OpenStreetMap). Un point par train, vert à l'heure, orange à partir de 5 min de retard, rouge à partir de 30 min, gris si annulé. Un clic ouvre le trajet, le retard, la cause et l'indemnité théorique par voyageur. Filtres par marque et par axe, compteur de trains en retard. La page lit `/api/live` toutes les minutes.
+
+**Les positions sont estimées, pas mesurées.** Entre le dernier arrêt portant un retard et le suivant, le train avance en ligne droite, à retard constant, depuis son départ corrigé jusqu'à son arrivée corrigée. Un train dont le dernier passage du collecteur date de plus de 10 min est estompé (« donnée périmée »). Les tracés réels des voies (SNCF Réseau) sont prévus à l'étape suivante.
+
 ## Développement
 
 Node 24 requis.
