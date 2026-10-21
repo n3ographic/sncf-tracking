@@ -66,11 +66,11 @@ Cache : `public, s-maxage=900, stale-while-revalidate=300` (15 min).
 
 ### `GET /api/live`
 
-Aucun paramètre (tout paramètre donne une erreur `400`). Trains en circulation (jour de service courant ou veille, pas encore terminés). Réponse : `generated_at` et `trains`. Clés d'un train : `trip_id`, `service_date`, `brand`, `axis`, `train_number`, `cancelled`, `dep_planned`, `arr_planned`, `origin` et `dest` (`stop_id`, `name`), `delay_s` et `last_seq` (dernier arrêt portant un retard), `cause`, `comp_pct`, `comp_eur_per_passenger_ref` (indemnité par voyageur, `comp_pct` appliqué au prix de référence HT), `last_seen_at`, `stops`. Clés d'un arrêt : `seq`, `stop_id`, `name`, `lat`, `lon`, `arr`, `dep`, `delay_s`, `cancelled`.
+Aucun paramètre (tout paramètre donne une erreur `400`). Trains en circulation (jour de service courant ou veille, pas encore terminés). Réponse : `generated_at` et `trains`. Clés d'un train : `trip_id`, `service_date`, `brand`, `axis`, `train_number`, `cancelled`, `dep_planned`, `arr_planned`, `origin` et `dest` (noms), `delay_s` et `last_seq` (dernier arrêt portant un retard), `cause` (160 caractères au plus), `comp_pct`, `comp_eur_per_passenger_ref` (indemnité par voyageur, `comp_pct` appliqué au prix de référence HT), `last_seen_at`, `stops`. Les valeurs nulles sont omises. `stops` ne contient que le dernier arrêt portant un retard et le suivant (les deux premiers arrêts si aucun retard n'est connu). Clés d'un arrêt : `seq`, `name`, `lat`, `lon` (3 décimales), `arr`, `dep`, `delay_s`, `cancelled` (présent seulement s'il est vrai).
 
 Un `dep_planned` dans le futur désigne un train annoncé par le flux mais pas encore parti.
 
-Cache : `public, s-maxage=60, stale-while-revalidate=30` (60 s).
+Cache : `public, s-maxage=180, stale-while-revalidate=60` (3 min : le collecteur ne passe que toutes les 2 min).
 
 ### Erreurs
 

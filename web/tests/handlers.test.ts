@@ -37,7 +37,7 @@ test('succès : 200, JSON et Cache-Control exact (stats et temps réel)', async 
 
   const l = await createLiveHandler(okDeps())(new Request('http://x/api/live'));
   expect(l.status).toBe(200);
-  expect(l.headers.get('cache-control')).toBe('public, s-maxage=60, stale-while-revalidate=30');
+  expect(l.headers.get('cache-control')).toBe('public, s-maxage=180, stale-while-revalidate=60');
   const body = await l.json();
   expect(body.generated_at).toBe('2026-10-21T10:00:00.000Z');
   expect(body.trains[0].comp_eur_per_passenger_ref).toBe(23.3);
@@ -143,7 +143,7 @@ test('live : 5 requêtes, un seul appel et le même generated_at', async () => {
   for (let i = 0; i < 5; i++) stamps.add((await (await h(new Request('http://x/api/live'))).json()).generated_at);
   expect(deps.rpc).toHaveBeenCalledTimes(1);
   expect(stamps.size).toBe(1);
-  expect(cached.mock.calls[0].slice(0, 2)).toEqual([['live'], 60]);
+  expect(cached.mock.calls[0].slice(0, 2)).toEqual([['live'], 180]);
 });
 
 test('/api/live?x=1 : 400 sans toucher au cache', async () => {

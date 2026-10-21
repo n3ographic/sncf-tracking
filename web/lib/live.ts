@@ -1,17 +1,16 @@
 import { round, toNum } from './num';
 import type { Price } from './stats';
 
-type Place = { stop_id: string; name: string | null };
 export type LiveStop = {
-  seq: number; stop_id: string; name: string | null; lat: number | null; lon: number | null;
-  arr: string | null; dep: string | null; delay_s: number | null; cancelled: boolean;
+  seq: number; name?: string; lat?: number; lon?: number; arr?: string; dep?: string; delay_s?: number; cancelled?: true;
 };
-// Clés produites par public.live_trains().
+// Clés produites par public.live_trains() ; les valeurs nulles sont omises. `stops` : dernier arrêt portant
+// un retard et le suivant (les deux premiers sans retard connu).
 export type LiveTrain = {
   trip_id: string; service_date: string; brand: string; axis: string; train_number: string;
-  cancelled: boolean; dep_planned: string; arr_planned: string; origin: Place; dest: Place;
-  delay_s: number | null; last_seq: number | null; cause: string | null; comp_pct: number;
-  last_seen_at: string | null; stops: LiveStop[];
+  cancelled: boolean; dep_planned: string; arr_planned: string; origin?: string; dest?: string;
+  delay_s?: number; last_seq?: number; cause?: string; comp_pct: number;
+  last_seen_at?: string; stops: LiveStop[];
 };
 
 export function shapeLive(trains: LiveTrain[], prices: Price[], now: Date) {
