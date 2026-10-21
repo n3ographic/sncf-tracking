@@ -104,6 +104,10 @@ La page d'accueil affiche les TGV en circulation (MapLibre GL, fond OpenFreeMap,
 
 **Les positions sont estimées, pas mesurées.** Entre le dernier arrêt portant un retard et le suivant, le train avance en ligne droite, à retard constant, depuis son départ corrigé jusqu'à son arrivée corrigée. Un train dont le dernier passage du collecteur date de plus de 10 min est estompé (« donnée périmée »). Entre deux arrêts, le train suit le tracé des voies (fichier `web/public/trace-paires.json`, précalculé par `npm run build:traces` à partir du fichier de formes des lignes de SNCF Réseau, plus court chemin sur le graphe des lignes) ; sans tracé connu pour la paire d'arrêts (gare hors du jeu, détour jugé aberrant, nouvelle paire après un changement de plan de transport), il avance en ligne droite. Le fichier de tracés est une base dérivée, sous licence ODbL : contient des informations de SNCF Réseau, sous licence ODbL.
 
+## Tableau de bord
+
+La page `/tableau` lit `/api/stats` : régularité officielle approchée, taux de suppression, répartition des retards au terminus et indemnités théoriques, par marque et par axe, sur 7, 14 ou 31 jours ou un mois. Chaque chiffre porte son effectif ; en dessous de 30 trains ayant circulé il est estompé (« échantillon trop petit »). Les causes de retard ne sont pas encore affichées.
+
 ## Développement
 
 Node 24 requis.

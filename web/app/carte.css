@@ -26,3 +26,4 @@ body { margin: 0; font-family: system-ui, sans-serif; color: var(--fg); backgrou
 .popup .popup-note { font-size: 12px; color: #555555; font-style: italic; }
 @media (max-width: 480px) { .carte-bar { flex-direction: column; align-items: stretch; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.carte-link { font-size: 14px; color: inherit; }

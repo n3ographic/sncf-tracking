@@ -1,0 +1,30 @@
+.tb { max-width: 1040px; margin: 0 auto; padding: 16px; --seg0: #1a9850; --seg1: #91cf60; --seg2: #d9ef8b; --seg3: #fee08b; --seg4: #fdae61; --seg5: #f46d43; --seg6: #d73027; --seg7: #7f1d1d; }
+@media (prefers-color-scheme: dark) { .tb { --seg0: #2ba35f; --seg1: #7fc05a; --seg2: #c3d97a; --seg3: #e8c86a; --seg4: #e69a50; --seg5: #e8664a; --seg6: #e04a40; --seg7: #b03a3a; } }
+.tb a { color: inherit; }
+.tb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.tb-head h1 { margin: 0 0 12px; font-size: 24px; }
+.tb-period { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.tb-period select { font: inherit; padding: 4px; }
+.tb-range { margin: 8px 0; color: var(--muted); font-size: 14px; }
+.tb-warn { margin: 12px 0; padding: 8px 12px; background: var(--warn); border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+.tb-error { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.tb-error button { font: inherit; margin-left: 8px; }
+.tb-body.stale { opacity: 0.5; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 16px 0; }
+.kpi { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.kpi dt { font-size: 13px; color: var(--muted); }
+.kpi dd { margin: 4px 0 0; font-size: 24px; font-weight: 700; }
+.small { opacity: 0.55; }
+.tb-scroll { overflow-x: auto; }
+.tb table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tb caption { text-align: left; font-weight: 600; padding: 8px 0; }
+.tb th, .tb td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+.tb td small { color: var(--muted); font-size: 12px; }
+.bar { display: flex; width: 160px; height: 14px; border-radius: 3px; overflow: hidden; background: var(--line); }
+.seg { display: inline-block; height: 100%; }
+.legend .seg { width: 12px; height: 12px; vertical-align: -1px; }
+.s0 { background: var(--seg0); } .s1 { background: var(--seg1); } .s2 { background: var(--seg2); } .s3 { background: var(--seg3); }
+.s4 { background: var(--seg4); } .s5 { background: var(--seg5); } .s6 { background: var(--seg6); } .s7 { background: var(--seg7); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; padding: 0; margin: 12px 0; font-size: 13px; color: var(--muted); }
+.tb-foot { color: var(--muted); font-size: 13px; }
+.tb-empty { padding: 16px 0; }
