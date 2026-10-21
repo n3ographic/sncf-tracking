@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { createLiveHandler, createRulesHandler, createStatsHandler, type Deps } from '../lib/handlers';
+import { createCumulHandler, createLiveHandler, createRulesHandler, createStatsHandler, type Deps } from '../lib/handlers';
 import { prices, scale } from './fixtures';
 
 beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}); });
@@ -189,4 +189,44 @@ test('rules : lecture en erreur = 502 no-store, rien de mémorisé, reprise au s
   expect(bad.status).toBe(502); expect(bad.headers.get('cache-control')).toBe('no-store');
   expect(store.size).toBe(0);
   expect((await h(new Request('http://x/api/rules'))).status).toBe(200);
+});
+
+const cumulRows = [
+  { brand: 'INOUI', metric: 'planned', n: '10', days: 1, first_day: '2026-10-20', last_day: '2026-10-20' },
+  { brand: 'INOUI', metric: 'observed', n: 4, days: 1, first_day: '2026-10-20', last_day: '2026-10-20' },
+  { brand: 'INOUI', metric: 'comp_pct_sum', n: 50, days: 1, first_day: '2026-10-20', last_day: '2026-10-20' },
+];
+const cumulDeps = () => ({ ...okDeps(), rpc: vi.fn(async () => ({ data: cumulRows, error: null })) });
+
+test('cumul : 200, forme, Cache-Control exact, clé et durée du cache', async () => {
+  const { cached } = fakeCache();
+  const deps = { ...cumulDeps(), cached };
+  const res = await createCumulHandler(deps)(new Request('http://x/api/cumul'));
+  expect(res.status).toBe(200);
+  expect(res.headers.get('cache-control')).toBe('public, s-maxage=3600, stale-while-revalidate=600');
+  const body = await res.json();
+  expect(body).toMatchObject({ since: '2026-10-20', through: '2026-10-20', days: 1, planned: 10, observed: 4, coverage_pct: 40 });
+  expect(typeof body.cost_eur_ht).toBe('number');
+  expect(deps.rpc).toHaveBeenCalledWith('cumul_totals', {});
+  expect(cached.mock.calls[0].slice(0, 2)).toEqual([['cumul', 'v1'], 3600]);
+});
+
+test('/api/cumul?x=1 : 400 no-store avant toute lecture', async () => {
+  const deps = cumulDeps();
+  const res = await createCumulHandler(deps)(new Request('http://x/api/cumul?x=1'));
+  expect(res.status).toBe(400);
+  expect(res.headers.get('cache-control')).toBe('no-store');
+  expect(deps.rpc).not.toHaveBeenCalled();
+  expect(deps.select).not.toHaveBeenCalled();
+});
+
+test('cumul : échec de la base = 502 no-store, rien de mémorisé, reprise au second appel', async () => {
+  const { cached, store } = fakeCache();
+  const deps = { ...cumulDeps(), cached };
+  deps.rpc.mockImplementationOnce((async () => ({ data: null, error: { message: 'x' } })) as never);
+  const h = createCumulHandler(deps);
+  const bad = await h(new Request('http://x/api/cumul'));
+  expect(bad.status).toBe(502); expect(bad.headers.get('cache-control')).toBe('no-store');
+  expect(store.size).toBe(0);
+  expect((await h(new Request('http://x/api/cumul'))).status).toBe(200);
 });

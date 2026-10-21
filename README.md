@@ -41,7 +41,7 @@ Le schéma est dans `supabase/migrations/`, le code partagé dans `supabase/func
 
 ## API publique
 
-Trois routes en lecture seule (Next.js, dossier `web/`), qui ne lisent la base qu'avec la clé publique.
+Quatre routes en lecture seule (Next.js, dossier `web/`), qui ne lisent la base qu'avec la clé publique.
 
 ### `GET /api/stats`
 
@@ -75,6 +75,12 @@ Cache : `public, s-maxage=180, stale-while-revalidate=60` (3 min : le collecteur
 ### `GET /api/rules`
 
 Les règles de calcul lues dans la base, en JSON : `generated_at`, `compensation_scale` (barème par marque : `brand`, `from_s`, `pct`, `source_url`, `source_as_of`), `regularity_rule` (`duration_from_s`, `max_delay_exclusive_s`, `source_url`) et `reference_prices` (`brand`, `price_eur_ht`, `seats`, `price_source`, `seats_source`, `as_of`). Aucun paramètre (tout paramètre donne une erreur `400`). Cache : `public, s-maxage=3600, stale-while-revalidate=600` (1 h).
+
+### `GET /api/cumul`
+
+Les indemnités théoriques cumulées depuis le début de la collecte (jour de service du 2026-10-20), au-delà du plafond de 31 jours de `/api/stats`. Calculées jour par jour : une tâche `pg_cron` quotidienne (04:30 UTC) enregistre dans `daily_stats` le résultat de la veille et de l'avant-veille. Aucun paramètre (tout paramètre donne une erreur `400`). Réponse : `since`, `through`, `days`, `planned`, `observed`, `coverage_pct` (observés / prévus, `null` si aucun prévu), `circulated`, `comp_eligible`, `cost_eur_ht` (à l'occupation de référence), `cost_eur_ht_at_full_occupancy`, `by_brand` (mêmes champs par marque) et `assumptions` (`occupancy`, `prices`).
+
+**Observé seulement, jamais extrapolé** : le compteur ne compte que les trains vus dans le flux temps réel ; il sous-estime donc la réalité tant que la couverture (`coverage_pct`) est faible. Coût = pourcentage cumulé / 100 × prix de référence HT × places × occupation. Cache : `public, s-maxage=3600, stale-while-revalidate=600` (1 h).
 
 ### Erreurs
 

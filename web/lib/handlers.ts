@@ -1,4 +1,5 @@
 import { unwrap, type Result } from './db';
+import { shapeCumul, type CumulRow } from './cumul';
 import { shapeLive, type LiveTrain } from './live';
 import { loadRules } from './rules';
 import { parseStatsParams } from './params';
@@ -15,6 +16,7 @@ export type Deps = {
 const STATS_CACHE = 'public, s-maxage=900, stale-while-revalidate=300';
 const LIVE_CACHE = 'public, s-maxage=180, stale-while-revalidate=60';
 const RULES_CACHE = 'public, s-maxage=3600, stale-while-revalidate=600';
+const CUMUL_CACHE = 'public, s-maxage=3600, stale-while-revalidate=600';
 
 const json = (body: unknown, status: number, cache: string) =>
   Response.json(body, { status, headers: { 'Cache-Control': cache } });
@@ -64,5 +66,19 @@ export function createRulesHandler(deps: Deps) {
     // Aucun paramètre : une seule clé de cache, refus avant toute lecture de la base.
     if (new URL(req.url).search !== '') return json({ error: 'aucun paramètre accepté' }, 400, 'no-store');
     return guarded(async () => json(await loadRules(deps), 200, RULES_CACHE));
+  };
+}
+
+export function createCumulHandler(deps: Deps) {
+  return async (req: Request) => {
+    // Aucun paramètre : une seule clé de cache, refus avant toute lecture de la base.
+    if (new URL(req.url).search !== '') return json({ error: 'aucun paramètre accepté' }, 400, 'no-store');
+    return guarded(async () => json(await deps.cached(['cumul', 'v1'], 3600, async () => {
+      const [rows, prices] = await Promise.all([
+        unwrap<CumulRow[]>(deps.rpc('cumul_totals', {}), 'cumul_totals'),
+        unwrap<Price[]>(deps.select('reference_prices', 'brand,price_eur_ht,seats,price_source,seats_source,as_of'), 'reference_prices'),
+      ]);
+      return shapeCumul(rows, prices); // lève si invalide : rien n'est mis en cache
+    }), 200, CUMUL_CACHE));
   };
 }
