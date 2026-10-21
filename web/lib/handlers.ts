@@ -14,7 +14,7 @@ export type Deps = {
 };
 
 const STATS_CACHE = 'public, s-maxage=900, stale-while-revalidate=300';
-const LIVE_CACHE = 'public, s-maxage=180, stale-while-revalidate=60';
+const LIVE_CACHE = 'public, s-maxage=300, stale-while-revalidate=60';
 const RULES_CACHE = 'public, s-maxage=3600, stale-while-revalidate=600';
 const CUMUL_CACHE = 'public, s-maxage=3600, stale-while-revalidate=600';
 
@@ -51,7 +51,7 @@ export function createLiveHandler(deps: Deps) {
   return async (req: Request) => {
     // Aucun paramètre : une seule clé de cache.
     if (new URL(req.url).search !== '') return json({ error: 'aucun paramètre accepté' }, 400, 'no-store');
-    return guarded(async () => json(await deps.cached(['live', 'v3'], 180, async () => {
+    return guarded(async () => json(await deps.cached(['live', 'v3'], 300, async () => {
       const [trains, prices] = await Promise.all([
         unwrap<LiveTrain[]>(deps.rpc('live_trains', {}), 'live_trains'),
         unwrap<Price[]>(deps.select('reference_prices', 'brand,price_eur_ht,seats,price_source,seats_source,as_of'), 'reference_prices'),

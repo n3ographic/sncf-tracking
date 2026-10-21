@@ -70,7 +70,7 @@ Aucun paramètre (tout paramètre donne une erreur `400`). Trains en circulation
 
 Un `dep_planned` dans le futur désigne un train annoncé par le flux mais pas encore parti.
 
-Cache : `public, s-maxage=180, stale-while-revalidate=60` (3 min : le collecteur ne passe que toutes les 2 min).
+Cache : `public, s-maxage=300, stale-while-revalidate=60` (5 min : le collecteur ne passe que toutes les 2 min ; les positions, elles, sont recalculées chaque seconde dans le navigateur).
 
 ### `GET /api/rules`
 
