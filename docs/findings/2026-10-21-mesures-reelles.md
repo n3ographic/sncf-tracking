@@ -161,3 +161,13 @@ jusqu'à 4 h) : Sud-Est 42,9 % et Intersecteurs 60 % tirent le total ; Atlantiqu
 4. **Egress de `/api/live`** : marge d'environ 10 % sur le plafond de 3 Go ; allègement à trancher avant la carte.
 5. `live_trains` inclut les trains pas encore partis (horizon du flux d'environ 1 h) : comportement à afficher
    comme tel sur la carte (position au départ, « pas encore parti »).
+
+## Déploiement Vercel et cache (2026-10-21)
+
+Production : https://sncf-tracking.vercel.app (projet `sncf-tracking`, racine `web`).
+
+- `/api/live` ×2 à 5 s d'écart : `generated_at` identique (`2026-10-21T12:02:57.572Z`), `x-vercel-cache` MISS puis HIT.
+- `/api/stats?occupancy=9` : 400, `cache-control: no-store`.
+- `/api/stats` : JSON conforme (période 2026-10-14 → 2026-10-20).
+
+**Egress : alerte.** `/api/live` pèse 337 620 octets (budget : 120 Ko). Avec un rafraîchissement par minute en usage continu, 337 620 × 1 440 × 30 ≈ 14,6 Go par mois, au-delà du plafond Supabase de 5 Go (seuil d'alerte : 2 Go). À traiter avant la carte du plan 3 : réduire la charge (champs, `stop_delays`), allonger le délai du cache ou ne rafraîchir que sur demande. Le plafond n'est atteint que si la route est appelée en continu, mais rien ne l'empêche aujourd'hui.
