@@ -67,7 +67,7 @@ test('regularity_max_delay_s aux bornes', async () => {
 test('métriques INOUI SUD_EST', async () => {
   await seedDataset(db)
   const rows = await stats(db, '2026-11-01', '2026-11-02')
-  expect(metrics(rows, 'INOUI', 'SUD_EST')).toMatchObject({
+  expect(metrics(rows, 'INOUI', 'SUD_EST')).toEqual({
     planned: 9, observed: 7, removed_late: 1, never_observed: 1, cancelled: 1, no_terminus: 1,
     circulated: 5, on_time_official: 2, comp_eligible: 1, comp_pct_sum: 50,
     'terminus:1-4': 1, 'terminus:5-14': 2, 'terminus:15-29': 1, 'terminus:120-179': 1,
@@ -115,4 +115,38 @@ test('anon peut appeler stats_period', async () => {
   const asSuper = await stats(db, '2026-11-01', '2026-11-02')
   expect(asSuper.length).toBeGreaterThan(0)
   expect(await asAnon(db, () => stats(db, '2026-11-01', '2026-11-02'))).toEqual(asSuper)
+})
+
+test('le retard au terminus repousse la fin du train (marge de 30 min, borne stricte)', async () => {
+  // Arrivée 11:00Z le jour de NOW : fin à 11:30 sans retard, 12:00 pile avec 1 800 s, 12:10 avec 2 400 s.
+  const late = (tripId: string, axis: SeedTrip['axis'], terminusDelayS: number) => seedTrip(db, { serviceDate: '2026-11-02', tripId,
+    brand: 'INOUI', axis, trainNumber: tripId, dep: '2026-11-02T10:00:00Z', arr: '2026-11-02T11:00:00Z', circulation: { terminusDelayS } })
+  await late('P0', 'NORD', 0)
+  await late('P30', 'EST', 1800)
+  await late('P40', 'INTERSECTEURS', 2400)
+  const rows = await stats(db, '2026-11-02', '2026-11-02')
+  expect([...new Set(rows.map(r => r.axis))]).toEqual(['NORD'])
+  expect(metrics(rows, 'INOUI', 'NORD')).toMatchObject({ planned: 1, circulated: 1, 'terminus:0': 1 })
+})
+
+test('valeur d’arrêt inconnue (chaîne autre que "cancelled") ignorée', async () => {
+  await seedTrip(db, trip('S', 3600, { terminusDelayS: 60, stopDelays: { '1': 60 } }))
+  await db.query(`update circulations set stop_delays = '{"1": 60, "2": "skipped", "3": "cancelled", "4": null}' where trip_id = 'S'`)
+  const m = metrics(await stats(db, '2026-11-01', '2026-11-01'), 'INOUI', 'SUD_EST')
+  expect(Object.fromEntries(Object.entries(m).filter(([k]) => k.startsWith('stop:')))).toEqual({ 'stop:1-4': 1, 'stop:cancelled': 1 })
+})
+
+test('vue circulation_measures : colonnes d’une circulation passée et d’une annulée', async () => {
+  await seedTrip(db, { serviceDate: '2020-01-01', tripId: 'V', brand: 'INOUI', axis: 'NORD', trainNumber: 'V',
+    dep: '2020-01-01T08:00:00Z', arr: '2020-01-01T10:00:00Z', circulation: { terminusDelayS: 1860 } })
+  await seedTrip(db, { serviceDate: '2100-01-01', tripId: 'X', brand: 'OUIGO', axis: 'EST', trainNumber: 'X',
+    dep: '2100-01-01T08:00:00Z', arr: '2100-01-01T10:00:00Z', circulation: { cancelled: true, terminusDelayS: null } })
+  const { rows } = await db.query(`select trip_id, brand, axis, cancelled, duration_s, terminus_delay_s, finished, on_time_official, bucket, comp_pct
+    from circulation_measures order by trip_id`)
+  expect(rows).toEqual([
+    { trip_id: 'V', brand: 'INOUI', axis: 'NORD', cancelled: false, duration_s: 7200, terminus_delay_s: 1860, finished: true,
+      on_time_official: false, bucket: '30-59', comp_pct: 25 },
+    { trip_id: 'X', brand: 'OUIGO', axis: 'EST', cancelled: true, duration_s: 7200, terminus_delay_s: null, finished: true,
+      on_time_official: null, bucket: null, comp_pct: null },
+  ])
 })

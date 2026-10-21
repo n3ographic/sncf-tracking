@@ -2,14 +2,20 @@
 -- Migration additive, lecture seule : fonctions security invoker (RLS des tables lues applicable).
 
 -- Marge après l'arrivée (corrigée du retard) au-delà de laquelle un train est terminé.
+-- Pas de « set search_path » : il empêche l'inlining des fonctions SQL (coût mesuré sur stats_period).
+-- Sans risque ici : aucune table lue, constante pure. L'avertissement function_search_path_mutable
+-- du conseiller Supabase est attendu.
 create function public.finished_margin() returns interval
-language sql immutable security invoker set search_path = '' as $$
+language sql immutable security invoker as $$
   select interval '30 minutes'
 $$;
 
 -- Tranche de retard en minutes entières : 0, 1-4, 5-14, 15-29, 30-59, 60-119, 120-179, 180+.
+-- Pas de « set search_path » : il empêche l'inlining (appelée une fois par arrêt dans stats_period).
+-- Sans risque : aucune table ni fonction utilisateur, seulement des opérateurs entiers. Avertissement
+-- function_search_path_mutable du conseiller Supabase attendu.
 create function public.delay_bucket(p_delay_s int) returns text
-language sql immutable security invoker set search_path = '' as $$
+language sql immutable security invoker as $$
   select case
     when p_delay_s is null then null
     when p_delay_s / 60 < 1 then '0'
@@ -40,11 +46,14 @@ language sql stable security invoker set search_path = '' as $$
 $$;
 
 -- Terminé : annulé, ou arrivée prévue + max(retard, 0) + marge dépassée à p_now.
+-- Pas de « set search_path » : il empêche l'inlining (appelée une fois par trajet dans stats_period).
+-- Sans risque : aucune table lue, seule fonction utilisateur appelée qualifiée (public.finished_margin),
+-- fonctions système résolues dans pg_catalog. Avertissement function_search_path_mutable attendu.
 create function public.circulation_finished(p_arr timestamptz, p_terminus_delay_s int, p_cancelled boolean, p_now timestamptz)
 returns boolean
-language sql stable security invoker set search_path = '' as $$
+language sql stable security invoker as $$
   select coalesce(p_cancelled, false)
-    or coalesce(p_arr + make_interval(secs => greatest(coalesce(p_terminus_delay_s, 0), 0)) + public.finished_margin() < p_now, false)
+    or coalesce(p_arr + pg_catalog.make_interval(secs => greatest(coalesce(p_terminus_delay_s, 0), 0)) + public.finished_margin() < p_now, false)
 $$;
 
 -- Une ligne par circulation ; marque, axe et horaires viennent du référentiel théorique.
@@ -105,7 +114,7 @@ language sql stable security invoker set search_path = '' as $$
     'stop:' || case when jsonb_typeof(s.value) = 'number' then public.delay_bucket(s.value::numeric::int) else 'cancelled' end,
     count(*)
   from base b cross join lateral jsonb_each(b.stop_delays) s
-  where b.observed and jsonb_typeof(s.value) in ('number', 'string')
+  where b.observed and (jsonb_typeof(s.value) = 'number' or s.value = '"cancelled"'::jsonb)
   group by 1, 2, 3
 $$;
 
