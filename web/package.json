@@ -5,12 +5,15 @@
     "node": ">=22"
   },
   "scripts": {
+    "predev": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs','public/maplibre-gl-worker.mjs')\"",
     "dev": "next dev",
+    "prebuild": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs','public/maplibre-gl-worker.mjs')\"",
     "build": "next build",
     "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
+    "maplibre-gl": "6.15.0",
     "next": "15.5.28",
     "react": "19.1.10",
     "react-dom": "19.1.10"

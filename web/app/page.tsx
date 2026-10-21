@@ -1,8 +1,10 @@
+import CarteView from './carte-view';
+
 export default function Home() {
   return (
     <main>
-      <h1>Observatoire en construction</h1>
-      <p>Observatoire indépendant, non affilié à SNCF ni à OUIGO.</p>
+      <h1 className="sr-only">Observatoire TGV : carte des trains en circulation</h1>
+      <CarteView />
     </main>
   );
 }

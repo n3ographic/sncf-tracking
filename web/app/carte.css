@@ -1,0 +1,28 @@
+:root { --bg: #ffffff; --fg: #1b1b1b; --muted: #555555; --line: #d0d0d0; --warn: #fff4cc; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1e1e1e; --fg: #f0f0f0; --muted: #b0b0b0; --line: #444444; --warn: #4a3d00; }
+}
+body { margin: 0; font-family: system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+.carte { position: fixed; inset: 0; }
+.carte-map { position: absolute; inset: 0; }
+.carte-bar {
+  position: absolute; top: 12px; left: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+  padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; max-width: 560px;
+}
+.carte-bar label { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+.carte-bar select { font: inherit; padding: 4px; }
+.carte-count { margin: 0; font-size: 14px; font-weight: 600; }
+.carte-banner {
+  position: absolute; top: 76px; left: 16px; right: 16px; margin: 0; padding: 8px 12px; max-width: 560px;
+  background: var(--warn); border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+}
+.carte-foot {
+  position: absolute; bottom: 44px; left: 16px; right: 56px; margin: 0; padding: 4px 8px; width: fit-content; max-width: calc(100% - 72px);
+  background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 12px;
+}
+.popup p { margin: 0 0 4px; font-size: 14px; color: #1b1b1b; }
+.popup .popup-title { font-weight: 700; }
+.popup .popup-cause { font-size: 12px; color: #555555; }
+.popup .popup-note { font-size: 12px; color: #555555; font-style: italic; }
+@media (max-width: 480px) { .carte-bar { flex-direction: column; align-items: stretch; } }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
