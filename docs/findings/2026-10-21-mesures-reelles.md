@@ -73,7 +73,9 @@ Tous conformes aux règles en base.
 | `explain analyze live_trains()` | 55,5 ms ; REST 0,20 à 0,29 s |
 
 Extrapolation à 31 jours pleins : ≈ 14 ms par jour (cas le plus lourd mesuré) × 31 ≈ **0,45 s**, soit environ
-6 à 7 fois sous la limite de 3 s du rôle `anon`.
+6 à 7 fois sous la limite de 3 s du rôle `anon`. Cette règle « durée par jour × 31 » suppose un coût proportionnel
+à la plage ; en réalité il suit l'historique total (voir la réserve ci-dessous) : 0,45 s est un minorant, qui augmentera
+avec la collecte.
 
 **Réserve** : dans le plan, la jointure sur la vue `circulation_measures` n'est pas restreinte aux dates demandées
 (parcours complet de `circulations`, filtre appliqué seulement après la jointure). Aujourd'hui sans effet
@@ -100,6 +102,8 @@ Répartition : le tableau `stops` pèse 66 % (227 Ko) ; dans les arrêts, `stop_
 `name` 26 Ko, `cancelled` 18 Ko, `lat`/`lon` 31 Ko ; `cause` 17 Ko (27 textes distincts pour 62 trains), `trip_id` 17 Ko.
 
 ### Budget
+
+Unités décimales : 1 Ko = 10^3 octets, 1 Go = 10^9 octets.
 
 - **Transmis au navigateur** : ≈ 40 Ko (gzip) ou 21 Ko (brotli) ≤ 120 Ko : **tenu**. En brut, 334 Ko : au-delà,
   seulement pour un client qui refuse la compression.
@@ -140,6 +144,8 @@ jusqu'à 4 h) : Sud-Est 42,9 % et Intersecteurs 60 % tirent le total ; Atlantiqu
 ## Points de décision
 
 1. **Granularité du flux : 5 minutes.** Les 1 940 retards numériques observés sont tous des multiples de 300 s
+   (retards d'arrêt : valeurs numériques de `circulations.stop_delays`, un par arrêt et par trajet, état courant ;
+   les retards au terminus, `terminus_delay_s`, sont comptés à part : 356 sur 356 multiples de 300 s au contrôle suivant)
    (plus petites valeurs non nulles : 300 et 600). Conséquences : la tranche `1-4` reste vide par construction ;
    pour un trajet de moins de 1 h 30, « strictement moins de 5 min » signifie « retard publié 0 » ; le seuil INOUI
    « plus de 30 min » (1 860 s) ne se déclenche qu'à 35 min publiées. Le sens d'arrondi du flux (inférieur ou au plus

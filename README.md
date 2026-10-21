@@ -39,15 +39,74 @@ Volume mesuré : 427 événements pendant la première heure de collecte réelle
 
 Le schéma est dans `supabase/migrations/`, le code partagé dans `supabase/functions/_shared/`.
 
+## API publique
+
+Deux routes en lecture seule (Next.js, dossier `web/`), qui ne lisent la base qu'avec la clé publique.
+
+### `GET /api/stats`
+
+Statistiques par marque et par axe sur une période de jours de service.
+
+| Paramètre | Format | Défaut |
+|---|---|---|
+| `to` | `AAAA-MM-JJ` | la veille (heure de Paris) |
+| `from` | `AAAA-MM-JJ` | `to` − 6 jours (7 jours inclus) |
+| `occupancy` | nombre de 0 à 1 | 0,75 |
+
+La période est limitée à 31 jours inclus. Réponse : `from`, `to`, `groups` (un objet par marque et axe, avec `brand` et `axis`), `totals` (mêmes champs, tous groupes confondus) et `assumptions` (`occupancy`, `prices`, `compensation_scale`, avec leurs sources). Champs d'un groupe :
+
+- comptes : `planned`, `observed`, `removed_late`, `never_observed`, `cancelled`, `no_terminus`, `circulated`, `on_time_official`, `comp_eligible`, `comp_pct_sum` ;
+- `official_regularity_pct` : `on_time_official / circulated × 100`, `null` si aucun train n'a circulé ;
+- `terminus_buckets` (tranches `0`, `1-4`, `5-14`, `15-29`, `30-59`, `60-119`, `120-179`, `180+` min) et `stop_buckets` (mêmes tranches plus `cancelled`) ;
+- `estimated_cost_eur_ht` : coût estimé des indemnités, en euros HT.
+
+Cache : `public, s-maxage=900, stale-while-revalidate=300` (15 min).
+
+### `GET /api/live`
+
+Trains en circulation (jour de service courant ou veille, pas encore terminés). Réponse : `generated_at` et `trains`. Clés d'un train : `trip_id`, `service_date`, `brand`, `axis`, `train_number`, `cancelled`, `dep_planned`, `arr_planned`, `origin` et `dest` (`stop_id`, `name`), `delay_s` et `last_seq` (dernier arrêt portant un retard), `cause`, `comp_pct`, `comp_eur_per_passenger_ref` (indemnité par voyageur sur le prix de référence), `last_seen_at`, `stops`. Clés d'un arrêt : `seq`, `stop_id`, `name`, `lat`, `lon`, `arr`, `dep`, `delay_s`, `cancelled`.
+
+Un `dep_planned` dans le futur désigne un train annoncé par le flux mais pas encore parti.
+
+Cache : `public, s-maxage=60, stale-while-revalidate=30` (60 s).
+
+### Erreurs
+
+`400` pour des paramètres invalides, `502` quand la base est indisponible ; corps `{"error": "…"}`, jamais mis en cache (`Cache-Control: no-store`).
+
+### Définitions et limites
+
+Les règles vivent en base (tables `regularity_rule`, `compensation_scale`, `reference_prices`), lisibles publiquement.
+
+- **Régularité officielle** (méthode de data.gouv.fr « Régularité mensuelle TGV par liaisons ») : un train est à l'heure si son retard au terminus est strictement inférieur à 5 min (trajet de moins de 1 h 30), 10 min (de 1 h 30 à 3 h) ou 15 min (plus de 3 h). Les suppressions sont exclues du dénominateur.
+- **Mesure brute** : suppressions comptées comme des échecs ; distribution des retards par tranche, au terminus et à chaque arrêt.
+- **Barème INOUI** (page SNCF Voyageurs « TGV INOUI - INTERCITÉS », mise à jour le 2026-06-17, lue le 2026-10-21) : plus de 30 min → 25 %, de 2 h à 3 h → 50 %, au-delà de 3 h → 75 %.
+- **Barème OUIGO** (page SNCF Voyageurs « OUIGO », mise à jour le 2026-09-04, lue le 2026-10-21) : de 1 h à 1 h 59 → 25 %, 2 h et plus → 50 %.
+- **Coût estimé** = Σ (pourcentage / 100 × prix de référence × capacité × occupation). Prix moyen HT par marque (FNAUT d'après l'ART, 2023 : INOUI 46,60 €, OUIGO 34,20 €) ; capacité d'une rame (INOUI 556, OUIGO 634 places), plancher ; occupation 0,75 par défaut, **hypothèse non sourcée**.
+- **Suppressions** : comptées, sans montant.
+- **Train terminé** : annulé, ou arrivée prévue + retard au terminus + 30 min dépassée. Seuls les trains terminés entrent dans `/api/stats`.
+- **Pas de 5 minutes** : les retards du flux GTFS-RT sont tous des multiples de 5 min. « À l'heure » sous 5 min équivaut donc à un retard publié de 0, la tranche `1-4` reste vide et le seuil INOUI n'est franchi qu'à 35 min publiées ; le sens de l'arrondi est inconnu. La régularité calculée est une approximation, à calibrer sur la régularité officielle mensuelle : ne pas la comparer aux chiffres officiels avant ce calibrage.
+- **Couverture** : la collecte a commencé le 2026-10-20 à 22 h 07 (heure de Paris) ; ce jour de service n'est couvert que partiellement, et toute panne du collecteur en ferait autant. `never_observed` (trajets prévus jamais vus dans le flux) rend la couverture visible.
+
+### Coûts et configuration
+
+Le site n'utilise que la clé publique (`SUPABASE_ANON_KEY`), soumise aux droits du rôle `anon`. Projet Vercel : racine `web`, variables `SUPABASE_URL` et `SUPABASE_ANON_KEY`. Les caches ci-dessus limitent les appels à Supabase (egress mesuré dans `docs/findings/2026-10-21-mesures-reelles.md`).
+
 ## Développement
 
 Node 24 requis.
 
 ```sh
 npm install
-npm test               # tests unitaires (vitest)
+npm test               # tests unitaires et tests SQL en mémoire (vitest, PGlite)
 npm run inspect        # sondage des flux GTFS-RT et du GTFS statique
 npm run import:static  # import du GTFS statique, lit SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY
+```
+
+Site (`web/`) :
+
+```sh
+cd web && npm install && npm test && npm run build
 ```
 
 `import:static` et les scripts d'export demandent les variables de `.env.local`, par exemple `npx tsx --env-file=.env.local scripts/import-static.ts`.
@@ -68,5 +127,6 @@ Aucun secret ne figure dans le code.
 
 ## État
 
-- Plan 1, collecte et archive : collecteur en service depuis le 20 octobre 2026 (Supabase, `pg_cron`) ; workflows GitHub écrits, en attente de la création du dépôt GitHub et de ses secrets.
-- Plans 2 à 4, à venir : mesures de régularité, carte, tableau de bord.
+- Plan 1, collecte et archive : collecteur en production depuis le 20 octobre 2026 (Supabase, `pg_cron`) ; workflows GitHub écrits, en attente de la création du dépôt GitHub et de ses secrets.
+- Plan 2, mesures et API : fonctions SQL et routes `/api/stats` et `/api/live` écrites et vérifiées sur les données réelles ; site **pas encore déployé** (déploiement après accord).
+- Plans 3 et 4, à venir : carte, tableau de bord.
