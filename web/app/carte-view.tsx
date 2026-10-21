@@ -6,7 +6,7 @@ import {
   applyFilters, axes, delayClass, isStale, lateCount, toFeatureCollection,
   type Filters, type LiveItem,
 } from '../lib/map-model';
-import { makeSegment, type TraceTable } from '../lib/traces';
+import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from '../lib/traces';
 import type { Lngl } from '../lib/position';
 import type { Cumul } from '../lib/cumul';
 
@@ -46,6 +46,11 @@ export default function CarteView() {
   const [filters, setFilters] = useState<Filters>({ brand: 'ALL', axis: 'ALL' });
   const trainsRef = useRef<LiveItem[]>([]);
   const filtersRef = useRef(filters);
+  const showTracksRef = useRef(true);
+  const tracksRef = useRef<LineCollection | null>(null);
+  const applyTracksRef = useRef<() => void>(() => {});
+  const [hasTracks, setHasTracks] = useState(false);
+  const [showTracks, setShowTracks] = useState(true);
   const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
   trainsRef.current = trains;
   filtersRef.current = filters;
@@ -54,6 +59,11 @@ export default function CarteView() {
   useEffect(() => {
     let map: MlMap | null = null;
     let cancelled = false;
+    // Les voies sont prêtes quand le fichier est chargé ET la carte initialisée : l'ordre d'arrivée est indifférent.
+    applyTracksRef.current = () => {
+      const src = map?.getSource('voies') as { setData(d: unknown): void } | undefined;
+      if (src && tracksRef.current) src.setData(tracksRef.current);
+    };
     const refresh = () => {
       const src = map?.getSource('trains') as { setData(d: unknown): void } | undefined;
       src?.setData(toFeatureCollection(applyFilters(trainsRef.current, filtersRef.current), new Date(), pathRef.current));
@@ -70,6 +80,13 @@ export default function CarteView() {
       mapRef.current = m;
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
       m.on('load', () => {
+        m.addSource('voies', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        m.addLayer({
+          id: 'voies', type: 'line', source: 'voies',
+          layout: { visibility: showTracksRef.current ? 'visible' : 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#6b7280', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 9, 2], 'line-opacity': 0.7 },
+        });
+        applyTracksRef.current();
         m.addSource('trains', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         m.addLayer({
           id: 'trains', type: 'circle', source: 'trains',
@@ -94,6 +111,13 @@ export default function CarteView() {
     return () => { cancelled = true; clearInterval(timer); map?.remove(); mapRef.current = null; };
   }, []);
 
+  // Case « Afficher les voies » : bascule la visibilité de la couche une fois la carte prête.
+  useEffect(() => {
+    showTracksRef.current = showTracks;
+    const m = mapRef.current;
+    if (m?.getLayer('voies')) m.setLayoutProperty('voies', 'visibility', showTracks ? 'visible' : 'none');
+  }, [showTracks]);
+
   // Tracés des voies : chargés une fois ; sans eux (échec, contenu invalide) les trains avancent en ligne droite.
   useEffect(() => {
     let alive = true;
@@ -101,7 +125,12 @@ export default function CarteView() {
       try {
         const r = await fetch('/trace-paires.json');
         const table = (await r.json()) as TraceTable;
-        if (alive && r.ok && table.pairs && typeof table.pairs === 'object') pathRef.current = makeSegment(table);
+        if (alive && r.ok && table.pairs && typeof table.pairs === 'object') {
+          pathRef.current = makeSegment(table);
+          tracksRef.current = tracesToLines(table);
+          setHasTracks(tracksRef.current.features.length > 0);
+          applyTracksRef.current();
+        }
       } catch {
         /* repli silencieux : lignes droites */
       }
@@ -163,6 +192,11 @@ export default function CarteView() {
             {axes(trains).map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </label>
+        {hasTracks && (
+          <label className="carte-check">
+            <input type="checkbox" checked={showTracks} onChange={(e) => setShowTracks(e.target.checked)} /> Afficher les voies
+          </label>
+        )}
         <p className="carte-count" aria-live="polite">{lateCount(shown)} trains en retard sur {shown.length}</p>
         {cumul && (
           <a className="carte-link" href="/tableau" title={`Observé seulement, couverture ${cumul.coverage_pct === null ? '—' : cumul.coverage_pct.toLocaleString('fr-FR')} % des trains prévus`}>

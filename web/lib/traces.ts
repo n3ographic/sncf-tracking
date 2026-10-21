@@ -24,3 +24,18 @@ export function makeSegment(table: TraceTable): (a: Lngl, b: Lngl) => Lngl[] {
     return [a, ...(forward ? line : [...line].reverse()), b];
   };
 }
+
+export type LineCollection = {
+  type: 'FeatureCollection';
+  features: { type: 'Feature'; properties: Record<string, never>; geometry: { type: 'LineString'; coordinates: [number, number][] } }[];
+};
+
+// Les tracés précalculés, tels quels, pour les dessiner sur la carte (une ligne par paire d'arrêts).
+export function tracesToLines(table: TraceTable): LineCollection {
+  return {
+    type: 'FeatureCollection',
+    features: Object.values(table.pairs)
+      .filter((line) => line.length >= 2)
+      .map((coordinates) => ({ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates } })),
+  };
+}

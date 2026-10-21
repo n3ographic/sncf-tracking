@@ -27,3 +27,4 @@ body { margin: 0; font-family: system-ui, sans-serif; color: var(--fg); backgrou
 @media (max-width: 480px) { .carte-bar { flex-direction: column; align-items: stretch; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .carte-link { font-size: 14px; color: inherit; }
+.carte-check { display: flex; gap: 6px; align-items: center; font-size: 14px; }

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { makeSegment, pairKey } from '../lib/traces';
+import { makeSegment, pairKey, tracesToLines } from '../lib/traces';
 
 const A: [number, number] = [2.3331, 48.8441];
 const B: [number, number] = [4.8591, 45.7601];
@@ -27,4 +27,12 @@ test('makeSegment : extrémités du tracé = nœuds du réseau à plusieurs cent
   expect(seg(B, A)).toEqual([B, ...[...line].reverse(), A]);
   const rev = makeSegment({ pairs: { [pairKey(A, B)]: [...line].reverse() } });
   expect(rev(A, B)).toEqual([A, ...line, B]);
+});
+
+test('tracesToLines : une ligne par paire, polylignes de moins de deux points ignorées', () => {
+  const fc = tracesToLines({ pairs: { a: [[2, 48], [3, 47]], b: [[3, 47], [4, 46], [5, 45]], c: [[1, 1]], d: [] } });
+  expect(fc.type).toBe('FeatureCollection');
+  expect(fc.features).toHaveLength(2);
+  expect(fc.features[1].geometry).toEqual({ type: 'LineString', coordinates: [[3, 47], [4, 46], [5, 45]] });
+  expect(tracesToLines({ pairs: {} }).features).toEqual([]);
 });
