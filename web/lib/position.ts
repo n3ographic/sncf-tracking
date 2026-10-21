@@ -28,27 +28,44 @@ function along(line: Lngl[], p: number): Lngl {
 }
 
 const ms = (iso?: string) => (iso === undefined ? NaN : Date.parse(iso));
+const okCoord = (lon?: number, lat?: number): boolean => lon != null && lat != null && Number.isFinite(lon + lat);
 
-// Position estimée entre le dernier arrêt portant un retard (A) et le suivant (B), à retard constant.
+// Position estimée le long de la fenêtre d'arrêts renvoyée par /api/live. Chaque arrêt a ses horaires prévus et son
+// retard (publié, sinon celui de l'arrêt précédent, sinon le retard du train, sinon 0 ; jamais négatif). Le tronçon
+// actif est celui qui encadre l'heure : à l'arrêt tant que le départ effectif n'est pas passé, en route ensuite jusqu'à
+// l'arrivée effective suivante, à l'arrivée une fois le dernier arrêt atteint.
 export function estimatePosition(
   train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>,
   now: Date,
   path: (a: Lngl, b: Lngl) => Lngl[] = segment,
 ): Estimate | null {
-  const [a, b] = train.stops;
-  if (!a || a.lon == null || a.lat == null || !Number.isFinite(a.lon + a.lat)) return null;
-  const at_a: Estimate = { lon: a.lon, lat: a.lat, state: 'at_stop' };
-  if (train.cancelled || !b) return at_a;
-  if (b.lon == null || b.lat == null || !Number.isFinite(b.lon + b.lat)) return null;
+  const stops = train.stops;
+  const first = stops[0];
+  if (!first || !okCoord(first.lon, first.lat)) return null;
+  const stopAt = (i: number, state: PositionState): Estimate => ({ lon: stops[i].lon!, lat: stops[i].lat!, state });
+  if (train.cancelled || stops.length === 1) return stopAt(0, 'at_stop');
 
-  const delay = Math.max(train.delay_s ?? 0, 0) * 1000;
-  const dep = (Number.isFinite(ms(a.dep)) ? ms(a.dep) : ms(a.arr)) + delay;
-  const arr = (Number.isFinite(ms(b.arr)) ? ms(b.arr) : ms(b.dep)) + delay;
-  if (!Number.isFinite(dep) || !Number.isFinite(arr)) return null;
+  let delay = Math.max(train.delay_s ?? 0, 0);
+  const eff = stops.map((st) => {
+    if (st.delay_s != null) delay = Math.max(st.delay_s, 0);
+    const d = delay * 1000;
+    const arr = (Number.isFinite(ms(st.arr)) ? ms(st.arr) : ms(st.dep)) + d;
+    const dep = (Number.isFinite(ms(st.dep)) ? ms(st.dep) : ms(st.arr)) + d;
+    return { arr, dep };
+  });
 
   const t = now.getTime();
-  if (t < dep) return at_a;
-  if (t >= arr || dep >= arr) return { lon: b.lon, lat: b.lat, state: 'arrived' };
-  const [lon, lat] = along(path([a.lon, a.lat], [b.lon, b.lat]), (t - dep) / (arr - dep));
-  return { lon, lat, state: 'moving' };
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i], b = stops[i + 1];
+    if (!okCoord(a.lon, a.lat) || !okCoord(b.lon, b.lat) || !Number.isFinite(eff[i].dep) || !Number.isFinite(eff[i + 1].arr)) return null;
+    if (t < eff[i].dep) return stopAt(i, 'at_stop');
+    if (t < eff[i + 1].arr) {
+      if (eff[i + 1].arr <= eff[i].dep) return stopAt(i + 1, 'arrived');
+      const [lon, lat] = along(path([a.lon!, a.lat!], [b.lon!, b.lat!]), (t - eff[i].dep) / (eff[i + 1].arr - eff[i].dep));
+      return { lon, lat, state: 'moving' };
+    }
+  }
+  const last = stops.length - 1;
+  if (!okCoord(stops[last].lon, stops[last].lat)) return null;
+  return stopAt(last, 'arrived');
 }

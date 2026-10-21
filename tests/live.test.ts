@@ -35,7 +35,7 @@ const trip = (tripId: string, circulation?: SeedTrip['circulation'], extra: Part
   dep: '2026-11-02T11:00:00Z', arr: '2026-11-02T12:30:00Z', circulation, stops: STOPS, ...extra,
 })
 
-test('un train en cours : clés exactes, fenêtre dernier arrêt + suivant, retard du dernier arrêt connu', async () => {
+test('un train en cours : clés exactes, fenêtre de 3 arrêts depuis le dernier départ passé, retards par arrêt', async () => {
   await seedTrip(db, trip('A', { terminusDelayS: null, stopDelays: { '1': 0, '2': 420 }, cause: 'Panne', lastSeenAt: '2026-11-02T11:59:00Z' }))
   const trains = await live(db)
   expect(trains).toHaveLength(1)
@@ -48,11 +48,12 @@ test('un train en cours : clés exactes, fenêtre dernier arrêt + suivant, reta
   expect(Date.parse(t.dep_planned)).toBe(Date.parse('2026-11-02T11:00:00Z'))
   expect(Date.parse(t.arr_planned)).toBe(Date.parse('2026-11-02T12:30:00Z'))
   expect(Date.parse(t.last_seen_at)).toBe(Date.parse('2026-11-02T11:59:00Z'))
-  expect(t.stops.map(s => s.seq)).toEqual([2, 3])
-  expect(t.stops.map(s => s.delay_s)).toEqual([420, undefined])
-  expect(t.stops[0]).toMatchObject({ name: 'Lyon Part-Dieu', lat: 45.76, lon: 4.859 })
-  expect(Date.parse(t.stops[0].arr)).toBe(Date.parse('2026-11-02T11:55:00Z'))
-  expect(Date.parse(t.stops[0].dep)).toBe(Date.parse('2026-11-02T11:58:00Z'))
+  // À 12:00Z : départ de Paris passé (11:00), départ de Lyon décalé de 420 s (12:05) pas encore.
+  expect(t.stops.map(s => s.seq)).toEqual([1, 2, 3])
+  expect(t.stops.map(s => s.delay_s)).toEqual([0, 420, 420]) // le dernier arrêt reprend le retard de l'arrêt précédent
+  expect(t.stops[1]).toMatchObject({ name: 'Lyon Part-Dieu', lat: 45.76, lon: 4.859 })
+  expect(Date.parse(t.stops[1].arr)).toBe(Date.parse('2026-11-02T11:55:00Z'))
+  expect(Date.parse(t.stops[1].dep)).toBe(Date.parse('2026-11-02T11:58:00Z'))
 })
 
 test('retard au-delà du seuil : comp_pct selon la marque', async () => {
@@ -69,6 +70,8 @@ test('un train annulé reste visible jusqu’à la fin de sa fenêtre', async ()
   expect(t).toMatchObject({ trip_id: 'X', cancelled: true, comp_pct: 0 })
   expect(t).not.toHaveProperty('delay_s')
   expect(t).not.toHaveProperty('last_seq')
+  // À 12:00Z les départs de Paris (11:00) et de Lyon (11:58) sont passés : la fenêtre part de Lyon, il n'y a que deux arrêts.
+  expect(t.stops.map(s => s.seq)).toEqual([2, 3])
   expect(t.stops.map(s => s.cancelled)).toEqual([true, true])
   expect(t.stops.map(s => s.delay_s)).toEqual([undefined, undefined])
 })
@@ -94,21 +97,23 @@ test('aucun train : tableau vide', async () => {
 test('anon peut lire stop_times_planned via la fonction', async () => {
   await seedTrip(db, trip('A', { terminusDelayS: null, stopDelays: { '1': 0, '2': 420 } }))
   const expected = await live(db)
-  expect(expected[0].stops).toHaveLength(2)
+  expect(expected[0].stops).toHaveLength(3)
   expect(await asAnon(db, () => live(db))).toEqual(expected)
 })
 
 test('arrêts triés par stop_sequence même insérés dans le désordre', async () => {
   await seedTrip(db, trip('S', { terminusDelayS: null }, { stops: [STOPS[2], STOPS[0], STOPS[1]] }))
   const [t] = await live(db)
-  expect(t.stops.map(s => s.seq)).toEqual([1, 2])
+  expect(t.stops.map(s => s.seq)).toEqual([2, 3]) // départ de Paris (11:00) et de Lyon (11:58) passés à 12:00
+  expect(t.stops.map(s => s.delay_s)).toEqual([undefined, undefined]) // aucun retard connu : pas de valeur inventée
 })
 
 test('clés de stop_delays non contiguës : dernier retard numérique', async () => {
   await seedTrip(db, trip('N', { terminusDelayS: null, stopDelays: { '1': 0, '3': 600 } }))
   const [t] = await live(db)
   expect(t).toMatchObject({ delay_s: 600, last_seq: 3 })
-  expect(t.stops.map(s => s.delay_s)).toEqual([600])
+  expect(t.stops.map(s => s.seq)).toEqual([2, 3])
+  expect(t.stops.map(s => s.delay_s)).toEqual([0, 600]) // Lyon reprend le retard de Paris
 })
 
 test('trajet sans horaires d’arrêts : stops vide', async () => {
@@ -146,4 +151,56 @@ test('clé hors de la plage int ignorée sans faire échouer la requête', async
 test('cause tronquée à 160 caractères', async () => {
   await seedTrip(db, trip('L', { terminusDelayS: null, stopDelays: { '1': 0 }, cause: 'x'.repeat(500) }))
   expect((await live(db))[0].cause).toHaveLength(160)
+})
+
+// Trajet de cinq arrêts, un tous les ~30 min, pour tester le choix de la fenêtre selon l'heure (NOW = 12:00Z).
+const route = (h: number): NonNullable<SeedTrip['stops']> => [
+  { seq: 1, stopId: 'S1', name: 'Un', lat: 48, lon: 2, arr: `2026-11-02T${h}:00:00Z`, dep: `2026-11-02T${h}:00:00Z` },
+  { seq: 2, stopId: 'S2', name: 'Deux', lat: 47.5, lon: 2.5, arr: `2026-11-02T${h}:20:00Z`, dep: `2026-11-02T${h}:22:00Z` },
+  { seq: 3, stopId: 'S3', name: 'Trois', lat: 47, lon: 3, arr: `2026-11-02T${h}:50:00Z`, dep: `2026-11-02T${h}:52:00Z` },
+  { seq: 4, stopId: 'S4', name: 'Quatre', lat: 46.5, lon: 3.5, arr: `2026-11-02T${h + 1}:20:00Z`, dep: `2026-11-02T${h + 1}:22:00Z` },
+  { seq: 5, stopId: 'S5', name: 'Cinq', lat: 46, lon: 4, arr: `2026-11-02T${h + 1}:50:00Z`, dep: `2026-11-02T${h + 1}:50:00Z` },
+]
+const long = (id: string, h: number, delays: Record<string, number> | undefined, extra: Partial<SeedTrip> = {}) =>
+  seedTrip(db, trip(id, { terminusDelayS: null, stopDelays: delays }, { dep: `2026-11-02T${h}:00:00Z`, arr: `2026-11-02T${h + 1}:50:00Z`, stops: route(h), ...extra }))
+
+test('fenêtre : trois arrêts à partir du dernier départ effectif passé', async () => {
+  await long('W', 11, { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 })
+  const [t] = await live(db)
+  expect(t.stops.map(s => s.seq)).toEqual([3, 4, 5]) // départ de l'arrêt 3 : 11:52 ≤ 12:00 ; arrêt 4 : 12:22 > 12:00
+})
+
+test('fenêtre : le retard décale le départ effectif (12:02 > 12:00 : l’arrêt 3 n’est pas encore parti)', async () => {
+  await long('D', 11, { '1': 600, '2': 600, '3': 600, '4': 600, '5': 600 })
+  const [t] = await live(db)
+  expect(t.stops.map(s => s.seq)).toEqual([2, 3, 4])
+  expect(t.stops.map(s => s.delay_s)).toEqual([600, 600, 600])
+})
+
+test('fenêtre : avant le départ, la fenêtre commence au premier arrêt', async () => {
+  await long('F', 13, { '1': 0 }) // premier départ à 13:00 > 12:00
+  const [t] = await live(db)
+  expect(t.stops.map(s => s.seq)).toEqual([1, 2, 3])
+})
+
+test('fenêtre : après le dernier arrêt, seul le dernier arrêt reste', async () => {
+  await long('E', 10, { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 }) // arrivée 11:50 + 30 min de marge > 12:00 : encore listé
+  const [t] = await live(db)
+  expect(t.stops.map(s => s.seq)).toEqual([5])
+})
+
+test('fenêtre : un arrêt sans retard reprend celui de l’arrêt précédent', async () => {
+  await long('C', 11, { '1': 0, '2': 900 })
+  const [t] = await live(db)
+  // arrêt 3 : 11:52 + 900 s = 12:07 > 12:00 ; arrêt 2 : 11:22 + 900 s = 11:37 ≤ 12:00
+  expect(t.stops.map(s => s.seq)).toEqual([2, 3, 4])
+  expect(t.stops.map(s => s.delay_s)).toEqual([900, 900, 900])
+})
+
+test('fenêtre : un arrêt supprimé garde cancelled et pas de retard, sans bloquer le report du retard', async () => {
+  await long('X', 11, { '1': 0, '2': 300, '3': 'cancelled' as unknown as number, '4': 300 })
+  const [t] = await live(db)
+  const three = t.stops.find(s => s.seq === 3)
+  expect(three).toMatchObject({ cancelled: true })
+  expect(three).not.toHaveProperty('delay_s')
 })

@@ -70,3 +70,33 @@ test('progression le long d’une polyligne pondérée par la latitude', () => {
   expect(e.lon).toBeCloseTo(1, 1);
   expect(e.lat).toBeCloseTo(60, 1);
 });
+
+// Fenêtre de trois arrêts, retard par arrêt : le tronçon actif est celui qui encadre l'heure.
+const C: LiveStop = { seq: 3, lon: 6, lat: 44, arr: '2026-11-02T13:00:00Z', dep: '2026-11-02T13:05:00Z' };
+const M: LiveStop = { seq: 2, lon: 4, lat: 46, arr: '2026-11-02T12:00:00Z', dep: '2026-11-02T12:10:00Z' };
+const trip3 = (delay?: number) => train([{ ...A, delay_s: delay }, { ...M, delay_s: delay }, { ...C, delay_s: delay }], delay);
+
+test('trois arrêts : au premier tronçon, puis à l’arrêt intermédiaire (temps d’arrêt), puis au second tronçon', () => {
+  const first = estimatePosition(trip3(0), at('11:30'))!;
+  expect(first.state).toBe('moving');
+  expect(first.lon).toBeCloseTo(3);
+  expect(estimatePosition(trip3(0), at('12:05'))).toEqual({ lon: 4, lat: 46, state: 'at_stop' }) // entre l'arrivée (12:00) et le départ (12:10)
+  const second = estimatePosition(trip3(0), at('12:35'))!; // (12:35−12:10)/(13:00−12:10) = 0,5
+  expect(second.state).toBe('moving');
+  expect(second.lon).toBeCloseTo(5);
+  expect(second.lat).toBeCloseTo(45);
+  expect(estimatePosition(trip3(0), at('13:10'))).toEqual({ lon: 6, lat: 44, state: 'arrived' })
+});
+
+test('trois arrêts : le retard d’un arrêt décale ses horaires, un arrêt sans retard reprend celui du précédent', () => {
+  const stops: LiveStop[] = [{ ...A, delay_s: 600 }, { ...M }, { ...C }]; // M et C reprennent 600 s
+  const e = estimatePosition(train(stops), at('12:30'))!; // M repart à 12:20, C arrive à 13:10 : (12:30−12:20)/50 min = 0,2
+  expect(e.state).toBe('moving');
+  expect(e.lon).toBeCloseTo(4 + 2 * 0.2);
+});
+
+test('fenêtre qui commence en cours de trajet : le premier arrêt est l’arrêt déjà quitté', () => {
+  const stops: LiveStop[] = [{ ...M, delay_s: 0 }, { ...C, delay_s: 0 }]; // départ de M à 12:10
+  expect(estimatePosition(train(stops), at('12:10'))).toMatchObject({ state: 'moving', lon: 4, lat: 46 });
+  expect(estimatePosition(train(stops), at('12:00'))).toEqual({ lon: 4, lat: 46, state: 'at_stop' });
+});

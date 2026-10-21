@@ -143,7 +143,7 @@ test('live : 5 requêtes, un seul appel et le même generated_at', async () => {
   for (let i = 0; i < 5; i++) stamps.add((await (await h(new Request('http://x/api/live'))).json()).generated_at);
   expect(deps.rpc).toHaveBeenCalledTimes(1);
   expect(stamps.size).toBe(1);
-  expect(cached.mock.calls[0].slice(0, 2)).toEqual([['live', 'v2'], 180]);
+  expect(cached.mock.calls[0].slice(0, 2)).toEqual([['live', 'v3'], 180]);
 });
 
 test('/api/live?x=1 : 400 sans toucher au cache', async () => {

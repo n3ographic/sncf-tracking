@@ -16,6 +16,7 @@ export const MIGRATIONS_UNDER_TEST = [
   '20261021000004_revoke_anon_writes.sql',
   '20261021000005_live_trains_compact.sql',
   '20261022000001_daily_stats.sql',
+  '20261022000003_live_trains_window.sql',
 ]
 
 const BOOTSTRAP = `
