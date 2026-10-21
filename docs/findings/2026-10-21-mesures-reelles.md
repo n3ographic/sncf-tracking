@@ -115,6 +115,9 @@ Unités décimales : 1 Ko = 10^3 octets, 1 Go = 10^9 octets.
 - `/api/stats` : 6,1 Ko brut, 1,2 Ko compressé ; réponse Supabase de 31 jours : 10,9 Ko brut. Négligeable,
   sauf si les variantes de paramètres (`from`, `to`, `occupancy`) multiplient les entrées de cache : chaque variante
   rappelle Supabase, même quand seul `occupancy` change.
+  **Corrigé après cette mesure** : `/api/stats` n'accepte plus que `period` (`7d`, `14d`, `31d`) ou `month` (`AAAA-MM`),
+  l'occupation n'est plus un paramètre (réponse : `estimated_cost_eur_ht` à 0,75 et `cost_eur_ht_at_full_occupancy`),
+  et `/api/live` refuse tout paramètre. Les requêtes avec `from`, `to` ou `occupancy` ci-dessous datent de l'ancienne API.
 
 ### Pistes d'allègement (non appliquées, à décider avant la carte)
 

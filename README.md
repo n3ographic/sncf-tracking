@@ -45,26 +45,28 @@ Deux routes en lecture seule (Next.js, dossier `web/`), qui ne lisent la base qu
 
 ### `GET /api/stats`
 
-Statistiques par marque et par axe sur une période de jours de service.
+Statistiques par marque et par axe sur une période de jours de service. Un seul paramètre au plus :
 
-| Paramètre | Format | Défaut |
+| Paramètre | Valeurs | Période |
 |---|---|---|
-| `to` | `AAAA-MM-JJ` | la veille (heure de Paris) |
-| `from` | `AAAA-MM-JJ` | `to` − 6 jours (7 jours inclus) |
-| `occupancy` | nombre de 0 à 1 | 0,75 |
+| `period` | `7d` (défaut), `14d`, `31d` | les n derniers jours, jusqu'à la veille (heure de Paris) |
+| `month` | `AAAA-MM`, de `2026-10` au mois courant | le mois, jusqu'à aujourd'hui pour le mois en cours |
 
-La période est limitée à 31 jours inclus. Réponse : `from`, `to`, `groups` (un objet par marque et axe, avec `brand` et `axis`), `totals` (mêmes champs, tous groupes confondus) et `assumptions` (`occupancy`, `prices`, `compensation_scale`, avec leurs sources). Champs d'un groupe :
+Tout autre paramètre, une valeur hors liste ou les deux paramètres ensemble donnent une erreur `400`. Cette liste fermée garde très petit le nombre de variantes mises en cache, donc d'appels à Supabase.
+
+Réponse : `from`, `to`, `groups` (un objet par marque et axe, avec `brand` et `axis`), `totals` (mêmes champs, tous groupes confondus) et `assumptions` (`occupancy`, `prices`, `compensation_scale`, avec leurs sources). Champs d'un groupe :
 
 - comptes : `planned`, `observed`, `removed_late`, `never_observed`, `cancelled`, `no_terminus`, `circulated`, `on_time_official`, `comp_eligible`, `comp_pct_sum` ;
 - `official_regularity_pct` : `on_time_official / circulated × 100`, `null` si aucun train n'a circulé ;
 - `terminus_buckets` (tranches `0`, `1-4`, `5-14`, `15-29`, `30-59`, `60-119`, `120-179`, `180+` min) et `stop_buckets` (mêmes tranches plus `cancelled`) ;
-- `estimated_cost_eur_ht` : coût estimé des indemnités, en euros HT.
+- `estimated_cost_eur_ht` : coût estimé des indemnités, en euros HT, à l'occupation de référence 0,75 (`assumptions.occupancy`) ;
+- `cost_eur_ht_at_full_occupancy` : même coût avec des rames pleines. Le coût est proportionnel à l'occupation : pour une autre hypothèse, le client calcule `coût = cost_eur_ht_at_full_occupancy × occupation`.
 
 Cache : `public, s-maxage=900, stale-while-revalidate=300` (15 min).
 
 ### `GET /api/live`
 
-Trains en circulation (jour de service courant ou veille, pas encore terminés). Réponse : `generated_at` et `trains`. Clés d'un train : `trip_id`, `service_date`, `brand`, `axis`, `train_number`, `cancelled`, `dep_planned`, `arr_planned`, `origin` et `dest` (`stop_id`, `name`), `delay_s` et `last_seq` (dernier arrêt portant un retard), `cause`, `comp_pct`, `comp_eur_per_passenger_ref` (indemnité par voyageur sur le prix de référence), `last_seen_at`, `stops`. Clés d'un arrêt : `seq`, `stop_id`, `name`, `lat`, `lon`, `arr`, `dep`, `delay_s`, `cancelled`.
+Aucun paramètre (tout paramètre donne une erreur `400`). Trains en circulation (jour de service courant ou veille, pas encore terminés). Réponse : `generated_at` et `trains`. Clés d'un train : `trip_id`, `service_date`, `brand`, `axis`, `train_number`, `cancelled`, `dep_planned`, `arr_planned`, `origin` et `dest` (`stop_id`, `name`), `delay_s` et `last_seq` (dernier arrêt portant un retard), `cause`, `comp_pct`, `comp_eur_per_passenger_ref` (indemnité par voyageur, `comp_pct` appliqué au prix de référence HT), `last_seen_at`, `stops`. Clés d'un arrêt : `seq`, `stop_id`, `name`, `lat`, `lon`, `arr`, `dep`, `delay_s`, `cancelled`.
 
 Un `dep_planned` dans le futur désigne un train annoncé par le flux mais pas encore parti.
 
@@ -82,8 +84,11 @@ Les règles vivent en base (tables `regularity_rule`, `compensation_scale`, `ref
 - **Mesure brute** : suppressions comptées comme des échecs ; distribution des retards par tranche, au terminus et à chaque arrêt.
 - **Barème INOUI** (page SNCF Voyageurs « TGV INOUI - INTERCITÉS », mise à jour le 2026-06-17, lue le 2026-10-21) : plus de 30 min → 25 %, de 2 h à 3 h → 50 %, au-delà de 3 h → 75 %.
 - **Barème OUIGO** (page SNCF Voyageurs « OUIGO », mise à jour le 2026-09-04, lue le 2026-10-21) : de 1 h à 1 h 59 → 25 %, 2 h et plus → 50 %.
-- **Coût estimé** = Σ (pourcentage / 100 × prix de référence × capacité × occupation). Prix moyen HT par marque (FNAUT d'après l'ART, 2023 : INOUI 46,60 €, OUIGO 34,20 €) ; capacité d'une rame (INOUI 556, OUIGO 634 places), plancher ; occupation 0,75 par défaut, **hypothèse non sourcée**.
+- **Coût estimé** = Σ (pourcentage / 100 × prix de référence × capacité × occupation). Prix moyen HT par marque (FNAUT d'après l'ART, 2023 : INOUI 46,60 €, OUIGO 34,20 €) ; capacité d'une rame (INOUI 556, OUIGO 634 places), plancher ; occupation de référence 0,75, **hypothèse non sourcée** (voir `cost_eur_ht_at_full_occupancy` pour en changer).
 - **Suppressions** : comptées, sans montant.
+- **`circulated`** : train terminé, non annulé, dont le retard au terminus est connu. Les `no_terminus` (terminés sans retard au terminus connu) ne comptent ni au numérateur ni au dénominateur de la régularité.
+- **`removed_late`** : trajet prévu, jamais vu dans le flux temps réel, puis retiré du GTFS statique (suppression tardive probable). **`never_observed`** : trajet prévu, jamais vu dans le flux et toujours présent au GTFS. **`comp_eligible`** : trains ayant circulé dont le retard au terminus ouvre droit à une indemnité selon le barème de leur marque ; `comp_pct_sum` est la somme de leurs pourcentages.
+- **Tranches et barème** : les tranches `30-59` et `180+` commencent une minute avant les seuils INOUI de 25 % et 75 % (31 min et 3 h 01). Un train de la tranche `30-59` n'est donc pas forcément indemnisé : seul `comp_eligible` le dit.
 - **Train terminé** : annulé, ou arrivée prévue + retard au terminus + 30 min dépassée. Seuls les trains terminés entrent dans `/api/stats`.
 - **Pas de 5 minutes** : les retards du flux GTFS-RT sont tous des multiples de 5 min. « À l'heure » sous 5 min équivaut donc à un retard publié de 0, la tranche `1-4` reste vide et le seuil INOUI n'est franchi qu'à 35 min publiées ; le sens de l'arrondi est inconnu. La régularité calculée est une approximation, à calibrer sur la régularité officielle mensuelle : ne pas la comparer aux chiffres officiels avant ce calibrage.
 - **Couverture** : la collecte a commencé le 2026-10-20 à 22 h 07 (heure de Paris) ; ce jour de service n'est couvert que partiellement, et toute panne du collecteur en ferait autant. `never_observed` (trajets prévus jamais vus dans le flux) rend la couverture visible.
@@ -102,6 +107,8 @@ npm test               # tests unitaires et tests SQL en mémoire (vitest, PGlit
 npm run inspect        # sondage des flux GTFS-RT et du GTFS statique
 npm run import:static  # import du GTFS statique, lit SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY
 ```
+
+Les migrations s'appliquent dans l'ordre des fichiers ; la dernière, `20261021000004_revoke_anon_writes.sql`, retire à `anon` et `authenticated` tout droit d'écriture sur le schéma `public`. En production, les versions de migration portent l'horodatage de leur application : les fichiers du dépôt font foi par leur ordre, et `supabase db push` ne doit pas être lancé sans `supabase migration repair` préalable.
 
 Site (`web/`) :
 

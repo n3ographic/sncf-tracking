@@ -4,6 +4,10 @@ export type StatRow = { brand: string; axis: string; metric: string; n: number }
 export type Price = { brand: string; price_eur_ht: number; seats: number; price_source: string; seats_source: string; as_of: string };
 export type Scale = { brand: string; from_s: number; pct: number; source_url: string; source_as_of: string };
 
+// Occupation de référence (hypothèse non sourcée). Le coût est linéaire :
+// coût = cost_eur_ht_at_full_occupancy × occupation.
+export const DEFAULT_OCCUPANCY = 0.75;
+
 const COUNTS = ['planned', 'observed', 'removed_late', 'never_observed', 'cancelled', 'no_terminus',
   'circulated', 'on_time_official', 'comp_eligible', 'comp_pct_sum'] as const;
 const BUCKETS = ['0', '1-4', '5-14', '15-29', '30-59', '60-119', '120-179', '180+'];
@@ -15,6 +19,7 @@ export type Totals = Counts & {
   terminus_buckets: Record<string, number>;
   stop_buckets: Record<string, number>;
   estimated_cost_eur_ht: number;
+  cost_eur_ht_at_full_occupancy: number;
 };
 export type Group = { brand: string; axis: string } & Totals;
 export type StatsPayload = {
@@ -25,11 +30,17 @@ export type StatsPayload = {
 const zeros = (keys: readonly string[]) => Object.fromEntries(keys.map((k) => [k, 0]));
 const empty = (): Totals => ({
   ...(zeros(COUNTS) as Counts), official_regularity_pct: null,
-  terminus_buckets: zeros(BUCKETS), stop_buckets: zeros(STOP_BUCKETS), estimated_cost_eur_ht: 0,
+  terminus_buckets: zeros(BUCKETS), stop_buckets: zeros(STOP_BUCKETS), estimated_cost_eur_ht: 0, cost_eur_ht_at_full_occupancy: 0,
 });
 const regularity = (t: Totals) => (t.circulated === 0 ? null : round((t.on_time_official / t.circulated) * 100, 1));
 
-export function shapeStats(rows: StatRow[], prices: Price[], scale: Scale[], p: { from: string; to: string; occupancy: number }): StatsPayload {
+export function shapeStats(rows: StatRow[], rawPrices: Price[], rawScale: Scale[], p: { from: string; to: string }): StatsPayload {
+  const prices = rawPrices
+    .map((x) => ({ ...x, price_eur_ht: toNum(x.price_eur_ht, 'price_eur_ht'), seats: toNum(x.seats, 'seats') }))
+    .sort((a, b) => a.brand.localeCompare(b.brand));
+  const scale = rawScale
+    .map((x) => ({ ...x, from_s: toNum(x.from_s, 'from_s'), pct: toNum(x.pct, 'pct') }))
+    .sort((a, b) => a.brand.localeCompare(b.brand) || a.from_s - b.from_s);
   const groups = new Map<string, Group>();
   for (const row of rows) {
     const n = toNum(row.n, row.metric);
@@ -51,23 +62,23 @@ export function shapeStats(rows: StatRow[], prices: Price[], scale: Scale[], p: 
   for (const g of list) {
     const price = prices.find((x) => x.brand === g.brand);
     if (!price) throw new Error(`prix de référence absent pour ${g.brand}`);
-    const raw = (g.comp_pct_sum / 100) * toNum(price.price_eur_ht, 'price_eur_ht') * toNum(price.seats, 'seats') * p.occupancy;
-    cost += raw;
-    g.estimated_cost_eur_ht = round(raw, 2);
+    const full = (g.comp_pct_sum / 100) * price.price_eur_ht * price.seats;
+    cost += full;
+    g.cost_eur_ht_at_full_occupancy = round(full, 2);
+    g.estimated_cost_eur_ht = round(full * DEFAULT_OCCUPANCY, 2);
     g.official_regularity_pct = regularity(g);
     for (const k of COUNTS) totals[k] += g[k];
     for (const k of BUCKETS) totals.terminus_buckets[k] += g.terminus_buckets[k];
     for (const k of STOP_BUCKETS) totals.stop_buckets[k] += g.stop_buckets[k];
   }
-  totals.estimated_cost_eur_ht = round(cost, 2);
+  totals.cost_eur_ht_at_full_occupancy = round(cost, 2);
+  totals.estimated_cost_eur_ht = round(cost * DEFAULT_OCCUPANCY, 2);
   totals.official_regularity_pct = regularity(totals);
 
   return {
     from: p.from, to: p.to, groups: list, totals,
     assumptions: {
-      occupancy: p.occupancy,
-      prices: [...prices].sort((a, b) => a.brand.localeCompare(b.brand)),
-      compensation_scale: [...scale].sort((a, b) => a.brand.localeCompare(b.brand) || toNum(a.from_s, 'from_s') - toNum(b.from_s, 'from_s')),
+      occupancy: DEFAULT_OCCUPANCY, prices, compensation_scale: scale,
     },
   };
 }

@@ -47,11 +47,15 @@ export function createStatsHandler(deps: Deps) {
 }
 
 export function createLiveHandler(deps: Deps) {
-  return async (_req: Request) => guarded(async () => {
+  return async (req: Request) => {
+    // Aucun paramètre : une seule clé de cache.
+    if (new URL(req.url).search !== '') return json({ error: 'aucun paramètre accepté' }, 400, 'no-store');
+    return guarded(async () => {
     const [trains, prices] = await Promise.all([
       unwrap<LiveTrain[]>(deps.rpc('live_trains', {}), 'live_trains'),
       unwrap<Price[]>(deps.select('reference_prices', 'brand,price_eur_ht,seats,price_source,seats_source,as_of'), 'reference_prices'),
     ]);
-    return json(shapeLive(trains, prices, deps.now()), 200, LIVE_CACHE);
-  });
+      return json(shapeLive(trains, prices, deps.now()), 200, LIVE_CACHE);
+    });
+  };
 }

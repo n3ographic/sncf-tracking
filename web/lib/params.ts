@@ -1,31 +1,34 @@
-export type StatsParams = { ok: true; from: string; to: string; occupancy: number } | { ok: false; error: string };
+// Paramètres volontairement réduits : peu de clés de cache possibles, donc peu d'appels à Supabase.
+export type StatsParams = { ok: true; from: string; to: string } | { ok: false; error: string };
 
-const MAX_DAYS = 31;
 const DAY_MS = 86_400_000;
+const FIRST_MONTH = '2026-10'; // premier mois avec des données
+const PERIODS: Record<string, number> = { '7d': 7, '14d': 14, '31d': 31 };
 const parisDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' });
 
-// Date calendaire réelle (aller-retour : 2026-02-30 est refusée) → millisecondes UTC à minuit.
-function parseDay(s: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-  const ms = Date.parse(`${s}T00:00:00Z`);
-  return Number.isNaN(ms) || new Date(ms).toISOString().slice(0, 10) !== s ? null : ms;
-}
+const dayMs = (s: string) => Date.parse(`${s}T00:00:00Z`);
 const fmt = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-export function parseStatsParams(q: URLSearchParams, now: Date): StatsParams {
-  const toRaw = q.get('to') ?? fmt(Date.parse(`${parisDate.format(now)}T00:00:00Z`) - DAY_MS);
-  const to = parseDay(toRaw);
-  if (to === null) return { ok: false, error: `date de fin invalide (AAAA-MM-JJ attendu) : ${toRaw}` };
-  const fromRaw = q.get('from') ?? fmt(to - 6 * DAY_MS);
-  const from = parseDay(fromRaw);
-  if (from === null) return { ok: false, error: `date de début invalide (AAAA-MM-JJ attendu) : ${fromRaw}` };
-  if (from > to) return { ok: false, error: 'la date de début doit précéder la date de fin' };
-  if ((to - from) / DAY_MS + 1 > MAX_DAYS) return { ok: false, error: `période limitée à ${MAX_DAYS} jours inclus (dates comprises)` };
+// Messages fixes : la valeur fournie n'est jamais recopiée.
+const fail = (error: string): StatsParams => ({ ok: false, error });
 
-  const occRaw = q.get('occupancy');
-  const occupancy = occRaw === null ? 0.75 : occRaw.trim() === '' ? NaN : Number(occRaw);
-  if (!Number.isFinite(occupancy) || occupancy < 0 || occupancy > 1) {
-    return { ok: false, error: 'occupation invalide : nombre entre 0 et 1 attendu' };
+export function parseStatsParams(q: URLSearchParams, now: Date): StatsParams {
+  const keys = [...q.keys()];
+  if (keys.some((k) => k !== 'period' && k !== 'month')) return fail('paramètre inconnu : seuls « period » ou « month » sont acceptés');
+  if (keys.length > 1) return fail('un seul paramètre attendu : « period » ou « month »');
+
+  const today = parisDate.format(now);
+  const month = q.get('month');
+  if (month !== null) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail('mois invalide : AAAA-MM attendu');
+    if (month < FIRST_MONTH || month > today.slice(0, 7)) return fail('mois hors de la période couverte');
+    const [y, m] = month.split('-').map(Number);
+    const last = fmt(Date.UTC(y, m, 0));
+    return { ok: true, from: `${month}-01`, to: last < today ? last : today };
   }
-  return { ok: true, from: fromRaw, to: toRaw, occupancy };
+
+  const days = PERIODS[q.get('period') ?? '7d'];
+  if (days === undefined) return fail('période invalide : 7d, 14d ou 31d attendu');
+  const to = dayMs(today) - DAY_MS;
+  return { ok: true, from: fmt(to - (days - 1) * DAY_MS), to: fmt(to) };
 }
