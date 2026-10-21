@@ -18,3 +18,7 @@ Serveur de dev local, base réelle, navigateur intégré.
 
 - Les téléchargements du journal `events` renvoient aux Releases GitHub, qui n'existent pas encore (premier export début novembre) : la page le dit.
 - Non testé avec un lecteur d'écran réel.
+
+## Production (https://sncf-tracking.vercel.app)
+
+`/methodologie` 200 (28 285 octets, barèmes lus dans la base, pas de « Règles indisponibles »), `/api/rules` 200 (1 903 octets, quatre clés, prix numériques, seuils `[0, 5400, 10801]`), `/api/rules?x=1` 400, `/tableau` et `/` 200 ; aucune erreur console.
