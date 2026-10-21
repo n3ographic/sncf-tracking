@@ -3,3 +3,7 @@ node_modules/
 .env*
 tmp/
 .DS_Store
+web/.next/
+web/.env*
+.vercel/
+web/*.tsbuildinfo
