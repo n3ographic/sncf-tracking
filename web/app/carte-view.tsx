@@ -148,6 +148,7 @@ export default function CarteView() {
         </label>
         <p className="carte-count" aria-live="polite">{lateCount(shown)} trains en retard sur {shown.length}</p>
         <a className="carte-link" href="/tableau">Tableau de bord</a>
+        <a className="carte-link" href="/methodologie">Méthodologie</a>
       </div>
       {failed && (
         <p className="carte-banner" role="status">

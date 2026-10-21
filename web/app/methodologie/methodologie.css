@@ -1,0 +1,14 @@
+.mt { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; line-height: 1.55; }
+.mt a { color: inherit; }
+.mt-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; }
+.mt-head h1 { margin: 0 0 8px; font-size: 26px; }
+.mt h2 { margin: 32px 0 8px; font-size: 20px; border-top: 1px solid var(--line); padding-top: 16px; }
+.mt h3 { margin: 20px 0 6px; font-size: 16px; }
+.mt dt { font-weight: 600; margin-top: 8px; }
+.mt dd { margin: 2px 0 0 16px; color: var(--muted); }
+.mt code { font-size: 13px; }
+.mt-warn { padding: 8px 12px; background: var(--warn); border: 1px solid var(--line); border-radius: 8px; }
+.mt-scroll { overflow-x: auto; margin: 12px 0; }
+.mt table { border-collapse: collapse; font-size: 14px; width: 100%; }
+.mt caption { text-align: left; font-weight: 600; padding: 4px 0 8px; }
+.mt th, .mt td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }

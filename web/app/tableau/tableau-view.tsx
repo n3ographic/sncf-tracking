@@ -71,7 +71,7 @@ export default function TableauView() {
     <>
       <header className="tb-head">
         <h1>Tableau de bord</h1>
-        <nav><a href="/">Carte</a></nav>
+        <nav><a href="/">Carte</a> · <a href="/methodologie">Méthodologie</a></nav>
       </header>
 
       <label className="tb-period">Période

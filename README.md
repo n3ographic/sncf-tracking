@@ -112,6 +112,10 @@ La page d'accueil affiche les TGV en circulation (MapLibre GL, fond OpenFreeMap,
 
 La page `/tableau` lit `/api/stats` : régularité officielle approchée, taux de suppression, répartition des retards au terminus et indemnités théoriques, par marque et par axe, sur 7, 14 ou 31 jours ou un mois. Chaque chiffre porte son effectif ; en dessous de 30 trains ayant circulé il est estompé (« échantillon trop petit »). Les causes de retard ne sont pas encore affichées.
 
+## Méthodologie
+
+La page `/methodologie` explique les sources, le périmètre, les définitions (régularité officielle, mesure brute), les indemnités théoriques et les limites connues. Les seuils de régularité, barèmes et prix de référence y sont lus dans la base (un seul accès par heure) et téléchargeables en JSON via `/api/rules`.
+
 ## Développement
 
 Node 24 requis.
