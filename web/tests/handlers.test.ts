@@ -1,6 +1,8 @@
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { createLiveHandler, createStatsHandler } from '../lib/handlers';
 import { prices, scale } from './fixtures';
+
+beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}); });
 
 const now = () => new Date('2026-10-21T10:00:00Z');
 const okDeps = () => ({
