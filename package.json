@@ -2,9 +2,7 @@
   "name": "observatoire-tgv",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=24"
-  },
+  "engines": { "node": ">=24" },
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "inspect": "tsx scripts/inspect-feed.ts",

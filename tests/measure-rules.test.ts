@@ -1,4 +1,4 @@
-import { beforeAll, expect, test } from 'vitest'
+import { afterEach, beforeAll, expect, test } from 'vitest'
 import type { PGlite } from '@electric-sql/pglite'
 import { asAnon, makeDb, resetData, seedTrip } from './sql/harness.ts'
 
@@ -7,6 +7,7 @@ beforeAll(async () => {
   db = await makeDb()
   await resetData(db)
 })
+afterEach(async () => { await resetData(db) })
 
 test('barème INOUI et OUIGO (secondes de retard)', async () => {
   const { rows } = await db.query('select brand, from_s, pct from compensation_scale order by brand, from_s')
@@ -51,10 +52,24 @@ test('anon lit les règles et stop_times_planned, pas events ni collector_state'
 })
 
 test('anon ne peut ni écrire dans les règles ni dans circulations', async () => {
+  const denied = /permission denied|row-level security/
   await asAnon(db, async () => {
-    await expect(db.query(`insert into compensation_scale (brand, from_s, pct, source_url, source_as_of) values ('INOUI', 1, 1, 'x', '2026-01-01')`)).rejects.toThrow()
-    await expect(db.query(`insert into regularity_rule (duration_from_s, max_delay_exclusive_s, source_url) values (1, 1, 'x')`)).rejects.toThrow()
-    await expect(db.query(`insert into reference_prices (brand, price_eur_ht, seats, price_source, seats_source, as_of) values ('INOUI', 1, 1, 'x', 'x', '2026-01-01')`)).rejects.toThrow()
-    await expect(db.query(`insert into circulations (service_date, trip_id) values ('2026-10-21', 'x')`)).rejects.toThrow()
+    await expect(db.query(`insert into compensation_scale (brand, from_s, pct, source_url, source_as_of) values ('INOUI', 1, 1, 'x', '2026-01-01')`)).rejects.toThrow(denied)
+    await expect(db.query(`insert into regularity_rule (duration_from_s, max_delay_exclusive_s, source_url) values (1, 1, 'x')`)).rejects.toThrow(denied)
+    await expect(db.query(`insert into reference_prices (brand, price_eur_ht, seats, price_source, seats_source, as_of) values ('INOUI', 1, 1, 'x', 'x', '2026-01-01')`)).rejects.toThrow(denied)
+    await expect(db.query(`insert into circulations (service_date, trip_id, brand, axis, train_number, cancelled, stop_delays) values ('2026-10-21', 'x', 'INOUI', 'NORD', '1', false, '{}')`)).rejects.toThrow(denied)
+    await expect(db.query(`update compensation_scale set pct = 99`)).rejects.toThrow(denied)
+    await expect(db.query(`delete from regularity_rule`)).rejects.toThrow(denied)
+    await expect(db.query(`truncate reference_prices`)).rejects.toThrow(denied)
   })
+  const { rows } = await db.query(`select (select count(*) from compensation_scale)::int as scale, (select count(*) from regularity_rule)::int as regularity,
+    (select count(*) from reference_prices)::int as prices, (select count(*) from circulations)::int as circ`)
+  expect(rows[0]).toEqual({ scale: 5, regularity: 3, prices: 2, circ: 0 })
+})
+
+test('asAnon remet le rôle même si le rappel échoue', async () => {
+  await expect(asAnon(db, () => db.query('delete from regularity_rule'))).rejects.toThrow()
+  const { rows } = await db.query<{ r: string }>('select current_user as r')
+  expect(rows[0].r).not.toBe('anon')
+  await db.query(`insert into collector_state (id) values (1)`)
 })

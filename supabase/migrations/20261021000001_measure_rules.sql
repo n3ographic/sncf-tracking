@@ -22,7 +22,7 @@ create table public.regularity_rule (
 create table public.reference_prices (
   brand text primary key check (brand in ('INOUI', 'OUIGO')),
   price_eur_ht numeric(6, 2) not null check (price_eur_ht > 0),
-  seats int not null check (seats > 0),
+  seats int not null check (seats > 0), -- places d'une seule rame : plancher, les rames couplées ne sont pas connues
   price_source text not null,
   seats_source text not null,
   as_of date not null
