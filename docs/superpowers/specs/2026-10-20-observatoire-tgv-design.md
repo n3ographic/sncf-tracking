@@ -52,6 +52,7 @@ Les retards du flux sont des minutes entières, jamais négatifs (vérifié sur 
 - **Coût total estimé** = somme sur les trains ayant circulé de (pourcentage / 100 × prix de référence × capacité × occupation). Toujours accompagné de ses hypothèses.
 - **Train terminé** : annulé, ou arrivée prévue + retard au terminus (0 s au minimum) + 30 min dépassée. Seuls les trains terminés entrent dans les statistiques, pour ne pas mélanger des retards encore prévisionnels.
 - **Périmètre statistique** : par jour de service, plafonné à 31 jours par requête (le rôle `anon` de Supabase a un délai d'exécution de 3 s).
+- **Limite connue des données temps réel** (vérifiée en base le 2026-10-21) : les retards du flux GTFS-RT vont par pas de 5 minutes (356 retards au terminus et 1 944 retards d'arrêt, tous multiples de 5 min, aucun entre 1 et 4 min). Notre « à l'heure » (retard < 5 min) équivaut donc à un retard publié de 0, et le seuil INOUI (plus de 30 min) n'est franchi qu'à 35 min publiées ; le sens de l'arrondi est inconnu. La régularité calculée est une approximation de la régularité officielle (à la minute) : à calibrer sur les chiffres officiels mensuels (plan 4) et à publier sur la page méthodologie avant toute comparaison.
 
 ## Découpage en plans
 1. Collecte et archive : flux, schéma, import statique, collecteur, export et purge. **Priorité : chaque jour sans collecte est perdu.**
