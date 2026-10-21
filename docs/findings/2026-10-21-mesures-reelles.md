@@ -171,3 +171,5 @@ Production : https://sncf-tracking.vercel.app (projet `sncf-tracking`, racine `w
 - `/api/stats` : JSON conforme (période 2026-10-14 → 2026-10-20).
 
 **Egress : alerte.** `/api/live` pèse 337 620 octets (budget : 120 Ko). Avec un rafraîchissement par minute en usage continu, 337 620 × 1 440 × 30 ≈ 14,6 Go par mois, au-delà du plafond Supabase de 5 Go (seuil d'alerte : 2 Go). À traiter avant la carte du plan 3 : réduire la charge (champs, `stop_delays`), allonger le délai du cache ou ne rafraîchir que sur demande. Le plafond n'est atteint que si la route est appelée en continu, mais rien ne l'empêche aujourd'hui.
+
+**Mesure en production après correctif** : `/api/live` = 120 225 octets (172 trains), `origin` en chaîne, un seul rafraîchissement toutes les 3 à 4 min observé (12:14:17 → 12:18:34 ; cache de bord puis cache de données Next). Egress au pire : 120 Ko × 14 400 ≈ 1,7 Go par mois, sous le seuil de 2 Go. Une entrée du cache de données de l'ancienne forme a survécu au redéploiement (la clé `['live']` est partagée entre déploiements) : la clé est maintenant `['live', 'v2']` ; à incrémenter si la forme de la réponse change.
