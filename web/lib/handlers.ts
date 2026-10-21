@@ -1,8 +1,8 @@
+import { unwrap, type Result } from './db';
 import { shapeLive, type LiveTrain } from './live';
 import { parseStatsParams } from './params';
 import { shapeStats, type Price, type Scale, type StatRow } from './stats';
 
-type Result = Promise<{ data: unknown; error: unknown }>;
 export type Deps = {
   rpc: (fn: string, args: Record<string, unknown>) => Result;
   select: (table: string, columns: string) => Result;
@@ -16,12 +16,6 @@ const LIVE_CACHE = 'public, s-maxage=180, stale-while-revalidate=60';
 
 const json = (body: unknown, status: number, cache: string) =>
   Response.json(body, { status, headers: { 'Cache-Control': cache } });
-
-async function unwrap<T>(r: Result, what: string): Promise<T> {
-  const { data, error } = await r;
-  if (error || !Array.isArray(data)) throw new Error(`lecture de ${what} impossible`);
-  return data as T;
-}
 
 // Toute erreur côté base (réponse en erreur, exception, nombre illisible) : 502 jamais mis en cache.
 async function guarded(run: () => Promise<Response>): Promise<Response> {
