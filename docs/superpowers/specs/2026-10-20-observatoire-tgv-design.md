@@ -29,9 +29,7 @@ Issue de la session de grill du 2026-10-20. Toutes les décisions ci-dessous ont
 ## Mesures
 - Régularité officielle SNCF : retard au terminus de moins de 5 min (trajet de moins de 1 h 30), 10 min (de 1 h 30 à 3 h) ou 15 min (plus de 3 h).
 - Mesure brute : distribution du retard à la minute, à chaque arrêt. Une suppression compte comme un échec.
-- Indemnité par voyageur, en pourcentage du billet, plus une valeur en euros sur un prix de référence sourcé. Le barème est **provisoire** et doit être confirmé sur les pages officielles avant toute publication de montants :
-  - INOUI : 25 % de 30 à 119 min, 50 % de 120 à 179 min, 75 % à partir de 180 min.
-  - OUIGO : 25 % de 60 à 119 min, 50 % à partir de 120 min.
+- Indemnité par voyageur, en pourcentage du billet, plus une valeur en euros sur un prix de référence sourcé. Barèmes **confirmés le 2026-10-21** sur les pages officielles (lectures retenues ci-dessous, section « Définitions retenues »).
 - Coût total : estimation, avec ses hypothèses publiées.
 - Suppressions : comptées, sans montant tant que la règle n'est pas vérifiée.
 
@@ -42,6 +40,18 @@ Issue de la session de grill du 2026-10-20. Toutes les décisions ci-dessous ont
 - Contenu du lancement : la carte, un tableau de bord par axe et par marque (régularité officielle et mesure brute, suppressions, causes), un compteur cumulé des indemnités théoriques, et une page méthodologie avec téléchargements.
 - Lecture seule : pas de comptes, pas de notifications, pas de données personnelles.
 - Code dans un dépôt GitHub public.
+
+## Définitions retenues (plan 2, 2026-10-21)
+Les retards du flux sont des minutes entières, jamais négatifs (vérifié sur 1 804 valeurs). Les règles vivent en base (tables `compensation_scale`, `regularity_rule`, `reference_prices`), publiques et sourcées, pas dans le code.
+- **Régularité officielle** (data.gouv.fr « Régularité mensuelle TGV par liaisons », SNCF, ODbL) : un train est à l'heure si son retard au terminus est **strictement inférieur** à 5 min (durée prévue < 1 h 30), 10 min (de 1 h 30 à 3 h inclus) ou 15 min (plus de 3 h). Taux = trains à l'heure / trains ayant circulé (suppressions exclues du dénominateur, comme l'officiel).
+- **Mesure brute** : suppressions comptées comme des échecs ; distribution du retard par tranche (0, 1-4, 5-14, 15-29, 30-59, 60-119, 120-179, 180+ min) au terminus et à chaque arrêt, arrêts supprimés à part. Les tranches s'alignent sur les seuils d'indemnisation.
+- **Barème INOUI** (page SNCF Voyageurs « TGV INOUI - INTERCITÉS », mise à jour le 2026-06-17) : plus de 30 min → 25 %, de 2 h à 3 h → 50 %, au-delà de 3 h → 75 % du prix du billet. Lecture : retard en minutes entières, « plus de » exclusif, « entre » inclusif au départ de la tranche ; en secondes : 25 % dès 1 860, 50 % dès 7 200, 75 % dès 10 860.
+- **Barème OUIGO** (page SNCF Voyageurs « OUIGO », mise à jour le 2026-09-04) : de 1 h à 1 h 59 → 25 %, 2 h et plus → 50 % ; en secondes : 25 % dès 3 600, 50 % dès 7 200. Pas de garantie en dessous d'1 h.
+- **Suppressions** : comptées, sans montant (aucune règle officielle de montant trouvée).
+- **Prix de référence** : prix moyen par marque, base **HT** (FNAUT d'après les données de l'ART, 2023 : INOUI 46,60 €, OUIGO 34,20 €), sous-estimation d'environ la TVA ; pas de prix par axe. **Capacité** : une rame (INOUI Duplex 556 places, OUIGO 634 places), plancher car les rames couplées ne sont pas connues. **Taux d'occupation** : aucune donnée publiée ; paramètre explicite, 0,75 par défaut, affiché comme hypothèse non sourcée.
+- **Coût total estimé** = somme sur les trains ayant circulé de (pourcentage / 100 × prix de référence × capacité × occupation). Toujours accompagné de ses hypothèses.
+- **Train terminé** : annulé, ou arrivée prévue + retard au terminus (0 s au minimum) + 30 min dépassée. Seuls les trains terminés entrent dans les statistiques, pour ne pas mélanger des retards encore prévisionnels.
+- **Périmètre statistique** : par jour de service, plafonné à 31 jours par requête (le rôle `anon` de Supabase a un délai d'exécution de 3 s).
 
 ## Découpage en plans
 1. Collecte et archive : flux, schéma, import statique, collecteur, export et purge. **Priorité : chaque jour sans collecte est perdu.**
