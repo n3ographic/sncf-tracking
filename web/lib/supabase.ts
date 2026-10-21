@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { unstable_cache } from 'next/cache';
 import type { Deps } from './handlers';
 
 // Lu à chaque requête (pas au build) ; seule la clé publique est utilisée.
@@ -13,4 +14,6 @@ export const supabaseDeps: Deps = {
   rpc: async (fn, args) => await client().rpc(fn, args),
   select: async (table, columns) => await client().from(table).select(columns),
   now: () => new Date(),
+  // Data Cache de Next (partagé entre instances sur Vercel) : protège Supabase quelle que soit l'URL brute.
+  cached: (keyParts, revalidateS, fn) => unstable_cache(fn, keyParts, { revalidate: revalidateS })(),
 };

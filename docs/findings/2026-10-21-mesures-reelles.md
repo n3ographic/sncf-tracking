@@ -117,7 +117,8 @@ Unités décimales : 1 Ko = 10^3 octets, 1 Go = 10^9 octets.
   rappelle Supabase, même quand seul `occupancy` change.
   **Corrigé après cette mesure** : `/api/stats` n'accepte plus que `period` (`7d`, `14d`, `31d`) ou `month` (`AAAA-MM`),
   l'occupation n'est plus un paramètre (réponse : `estimated_cost_eur_ht` à 0,75 et `cost_eur_ht_at_full_occupancy`),
-  et `/api/live` refuse tout paramètre. Les requêtes avec `from`, `to` ou `occupancy` ci-dessous datent de l'ancienne API.
+  et `/api/live` refuse tout paramètre. Supabase est en outre protégé par le cache de données serveur de Next.js,
+  indexé par la fenêtre validée (15 min pour les statistiques, 60 s pour le temps réel). Les requêtes avec `from`, `to` ou `occupancy` ci-dessous datent de l'ancienne API.
 
 ### Pistes d'allègement (non appliquées, à décider avant la carte)
 

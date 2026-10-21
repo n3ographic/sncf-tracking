@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { createLiveHandler, createStatsHandler } from '../lib/handlers';
+import { createLiveHandler, createStatsHandler, type Deps } from '../lib/handlers';
 import { prices, scale } from './fixtures';
 
 beforeEach(() => { vi.spyOn(console, 'error').mockImplementation(() => {}); });
@@ -9,7 +9,22 @@ const okDeps = () => ({
   rpc: vi.fn(async (fn: string) => ({ data: fn === 'live_trains' ? [{ trip_id: 't', brand: 'INOUI', comp_pct: 50 }] : [{ brand: 'INOUI', axis: 'EST', metric: 'planned', n: '3' }], error: null })),
   select: vi.fn(async (table: string) => ({ data: table === 'reference_prices' ? prices : scale, error: null })),
   now,
+  cached: <T>(_k: string[], _s: number, fn: () => Promise<T>) => fn(),
 });
+
+// Faux cache de données : Map + TTL, clé = keyParts.join('|'), une erreur n'est pas mémorisée.
+function fakeCache() {
+  const store = new Map<string, { until: number; value: unknown }>();
+  const mock = vi.fn<Deps['cached']>(async <T>(keyParts: string[], revalidateS: number, fn: () => Promise<T>): Promise<T> => {
+    const key = keyParts.join('|'), hit = store.get(key);
+    if (hit && hit.until > Date.now()) return hit.value as T;
+    const value = await fn();
+    store.set(key, { until: Date.now() + revalidateS * 1000, value });
+    return value;
+  });
+  // Mock perd la signature générique : on la rétablit pour Deps.
+  return { cached: mock as typeof mock & Deps['cached'], store };
+}
 
 test('succès : 200, JSON et Cache-Control exact (stats et temps réel)', async () => {
   const deps = okDeps();
@@ -88,4 +103,51 @@ test('nombre illisible venant de la base : 502 plutôt que NaN', async () => {
   const deps = { ...okDeps(), rpc: vi.fn(async () => ({ data: [{ brand: 'INOUI', axis: 'EST', metric: 'planned', n: 'abc' }], error: null })) };
   const res = await createStatsHandler(deps)(new Request('http://x/api/stats'));
   expect(res.status).toBe(502);
+});
+
+test('même fenêtre canonique : la base n’est appelée qu’une fois', async () => {
+  const { cached, store } = fakeCache();
+  const deps = { ...okDeps(), cached };
+  const h = createStatsHandler(deps);
+  for (const qs of ['', '?period=7d', '?period=7d', '', '?period=7d']) expect((await h(new Request(`http://x/api/stats${qs}`))).status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledTimes(1); expect(deps.select).toHaveBeenCalledTimes(2);
+  expect([...store.keys()]).toEqual(['stats|2026-10-14|2026-10-20']);
+  expect(cached.mock.calls[0][1]).toBe(900);
+  await h(new Request('http://x/api/stats?period=14d'));
+  expect(deps.rpc).toHaveBeenCalledTimes(2);
+});
+
+test.each([
+  ['objet erreur', async () => ({ data: null, error: { message: 'boom' } })],
+  ['exception', async () => { throw new Error('réseau'); }],
+  ['pas un tableau', async () => ({ data: { x: 1 }, error: null })],
+  ['nombre illisible', async () => ({ data: [{ brand: 'INOUI', axis: 'EST', metric: 'planned', n: 'abc' }], error: null })],
+])('échec de la base (%s) : 502 no-store, jamais mis en cache', async (_n, failing) => {
+  const { cached, store } = fakeCache();
+  const deps = { ...okDeps(), cached };
+  deps.rpc.mockImplementationOnce(failing as never);
+  const h = createStatsHandler(deps);
+  const bad = await h(new Request('http://x/api/stats'));
+  expect(bad.status).toBe(502); expect(bad.headers.get('cache-control')).toBe('no-store');
+  expect(store.size).toBe(0);
+  expect((await h(new Request('http://x/api/stats'))).status).toBe(200);
+  expect(deps.rpc).toHaveBeenCalledTimes(2);
+});
+
+test('live : 5 requêtes, un seul appel et le même generated_at', async () => {
+  const { cached } = fakeCache();
+  let t = 0;
+  const deps = { ...okDeps(), cached, now: () => new Date(Date.UTC(2026, 9, 21, 10, 0, t++)) };
+  const h = createLiveHandler(deps);
+  const stamps = new Set<string>();
+  for (let i = 0; i < 5; i++) stamps.add((await (await h(new Request('http://x/api/live'))).json()).generated_at);
+  expect(deps.rpc).toHaveBeenCalledTimes(1);
+  expect(stamps.size).toBe(1);
+  expect(cached.mock.calls[0].slice(0, 2)).toEqual([['live'], 60]);
+});
+
+test('/api/live?x=1 : 400 sans toucher au cache', async () => {
+  const { cached } = fakeCache();
+  const res = await createLiveHandler({ ...okDeps(), cached })(new Request('http://x/api/live?x=1'));
+  expect(res.status).toBe(400); expect(cached).not.toHaveBeenCalled();
 });

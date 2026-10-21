@@ -52,7 +52,7 @@ Statistiques par marque et par axe sur une période de jours de service. Un seul
 | `period` | `7d` (défaut), `14d`, `31d` | les n derniers jours, jusqu'à la veille (heure de Paris) |
 | `month` | `AAAA-MM`, de `2026-10` au mois courant | le mois, jusqu'à aujourd'hui pour le mois en cours |
 
-Tout autre paramètre, une valeur hors liste ou les deux paramètres ensemble donnent une erreur `400`. Cette liste fermée garde très petit le nombre de variantes mises en cache, donc d'appels à Supabase.
+Tout autre paramètre, une valeur hors liste ou les deux paramètres ensemble donnent une erreur `400`.
 
 Réponse : `from`, `to`, `groups` (un objet par marque et axe, avec `brand` et `axis`), `totals` (mêmes champs, tous groupes confondus) et `assumptions` (`occupancy`, `prices`, `compensation_scale`, avec leurs sources). Champs d'un groupe :
 
@@ -91,11 +91,12 @@ Les règles vivent en base (tables `regularity_rule`, `compensation_scale`, `ref
 - **Tranches et barème** : les tranches `30-59` et `180+` commencent une minute avant les seuils INOUI de 25 % et 75 % (31 min et 3 h 01). Un train de la tranche `30-59` n'est donc pas forcément indemnisé : seul `comp_eligible` le dit.
 - **Train terminé** : annulé, ou arrivée prévue + retard au terminus + 30 min dépassée. Seuls les trains terminés entrent dans `/api/stats`.
 - **Pas de 5 minutes** : les retards du flux GTFS-RT sont tous des multiples de 5 min. « À l'heure » sous 5 min équivaut donc à un retard publié de 0, la tranche `1-4` reste vide et le seuil INOUI n'est franchi qu'à 35 min publiées ; le sens de l'arrondi est inconnu. La régularité calculée est une approximation, à calibrer sur la régularité officielle mensuelle : ne pas la comparer aux chiffres officiels avant ce calibrage.
+- **Taille du cache de données** : Next.js n'y garde que des éléments de 2 Mo au plus ; la réponse brute de `/api/live` fait environ 350 Ko aujourd'hui, à garder très en dessous (allègement du plan 3).
 - **Couverture** : la collecte a commencé le 2026-10-20 à 22 h 07 (heure de Paris) ; ce jour de service n'est couvert que partiellement, et toute panne du collecteur en ferait autant. `never_observed` (trajets prévus jamais vus dans le flux) rend la couverture visible.
 
 ### Coûts et configuration
 
-Le site n'utilise que la clé publique (`SUPABASE_ANON_KEY`), soumise aux droits du rôle `anon`. Projet Vercel : racine `web`, variables `SUPABASE_URL` et `SUPABASE_ANON_KEY`. Les caches ci-dessus limitent les appels à Supabase (egress mesuré dans `docs/findings/2026-10-21-mesures-reelles.md`).
+Le site n'utilise que la clé publique (`SUPABASE_ANON_KEY`), soumise aux droits du rôle `anon`. Projet Vercel : racine `web`, variables `SUPABASE_URL` et `SUPABASE_ANON_KEY`. Supabase est protégé par un cache de données côté serveur (Data Cache de Next.js), indexé par la fenêtre validée : une lecture au plus par fenêtre toutes les 15 min pour `/api/stats`, une par minute pour `/api/live`, quelle que soit l'écriture de l'URL. Une erreur n'y est jamais mémorisée. Les en-têtes `Cache-Control` ci-dessus servent le CDN, qui peut garder plusieurs variantes d'une même URL ; ces variantes ne rappellent pas Supabase. Egress mesuré dans `docs/findings/2026-10-21-mesures-reelles.md`.
 
 ## Développement
 
@@ -108,7 +109,7 @@ npm run inspect        # sondage des flux GTFS-RT et du GTFS statique
 npm run import:static  # import du GTFS statique, lit SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY
 ```
 
-Les migrations s'appliquent dans l'ordre des fichiers ; la dernière, `20261021000004_revoke_anon_writes.sql`, retire à `anon` et `authenticated` tout droit d'écriture sur le schéma `public`. En production, les versions de migration portent l'horodatage de leur application : les fichiers du dépôt font foi par leur ordre, et `supabase db push` ne doit pas être lancé sans `supabase migration repair` préalable.
+Les migrations s'appliquent dans l'ordre des fichiers ; la dernière, `20261021000004_revoke_anon_writes.sql`, retire à `anon` et `authenticated` tout droit d'écriture sur le schéma `public`. En production, les versions de migration portent l'horodatage de leur application ; les fichiers du dépôt font foi par leur ordre. Avant tout `supabase db push`, aligner l'historique avec `supabase migration repair --status applied <version>` pour chaque version du dépôt (noms de `supabase/migrations/`) enregistrée en production sous un autre horodatage.
 
 Site (`web/`) :
 
