@@ -20,7 +20,7 @@ Précalcul hors ligne (script versionné), résultat statique chargé par le nav
 
 - `scripts/build-traces.ts` (commande `npm run build:traces`) : télécharge le jeu dans `tmp/` (git-ignoré), lit les paires d'arrêts consécutifs distinctes et les coordonnées des gares dans la base (tables publiques `stop_times_planned` et `stops`, clé publique `anon`, pagination), calcule un tracé par paire, écrit `web/public/trace-paires.json`, affiche un compte rendu (voir Qualité).
 - `scripts/lib/rail-graph.ts` (pur, testé) : `buildGraph(troncons)`, `nearestNode(graph, lon, lat, maxM)`, `shortestPath(graph, from, to)`, `simplify(line, toleranceM)`, `haversineM`.
-  - Nœuds : sommets des tronçons ; deux sommets à moins de 25 m sont fusionnés (grille de hachage), sans quoi les jonctions ne se rejoignent pas.
+  - Nœuds : sommets des tronçons ; deux sommets à moins de 60 m sont fusionnés (grille de hachage), sans quoi les jonctions ne se rejoignent pas (25 m, première valeur, laissait des coupures : voir `docs/findings/2026-10-21-traces.md`).
   - Arêtes pondérées par la distance haversine ; plus court chemin par Dijkstra.
   - Une gare est accrochée au nœud le plus proche à moins de 1 000 m ; sinon pas de tracé.
   - Un tracé est rejeté (ligne droite) si sa longueur dépasse 1,5 fois la distance à vol d'oiseau, ou si les deux gares sont accrochées au même nœud.
