@@ -116,3 +116,27 @@ test('trajet sans horaires d’arrêts : stops vide', async () => {
   expect(t.origin).toEqual({ stop_id: null, name: null })
   expect(t.dest).toEqual({ stop_id: null, name: null })
 })
+
+test('la fenêtre suit l’arrivée du plan, pas celle copiée dans la circulation', async () => {
+  await seedTrip(db, trip('PL', { terminusDelayS: 0 }, { dep: '2026-11-02T11:30:00Z', arr: '2026-11-02T13:00:00Z' }))
+  // Circulation périmée : arrivée 11:00Z → fenêtre close à 11:30Z si elle était la source.
+  await db.query(`update circulations set arr_planned = '2026-11-02T11:00:00Z' where trip_id = 'PL'`)
+  expect((await live(db)).map(t => t.trip_id)).toEqual(['PL'])
+})
+
+test('clés de stop_delays triées numériquement : "10" après "2"', async () => {
+  await seedTrip(db, trip('T', { terminusDelayS: null, stopDelays: { '2': 300, '10': 600 } }))
+  expect((await live(db))[0]).toMatchObject({ delay_s: 600, last_seq: 10 })
+})
+
+test('valeur "cancelled" à la plus haute clé : ignorée pour le dernier retard', async () => {
+  await seedTrip(db, trip('C', { terminusDelayS: null, stopDelays: { '2': 300, '10': 'cancelled' } }))
+  expect((await live(db))[0]).toMatchObject({ delay_s: 300, last_seq: 2 })
+})
+
+test('clé hors de la plage int ignorée sans faire échouer la requête', async () => {
+  await seedTrip(db, trip('B', { terminusDelayS: null, stopDelays: { '1': 0, '99999999999': 5 } }))
+  const trains = await live(db)
+  expect(trains.map(t => t.trip_id)).toEqual(['B'])
+  expect(trains[0]).toMatchObject({ delay_s: 0, last_seq: 1 })
+})

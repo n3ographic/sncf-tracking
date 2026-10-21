@@ -24,7 +24,8 @@ language sql stable security invoker set search_path = '' as $$
   left join lateral (
     select d.key::int as seq, d.value::numeric::int as delay_s
     from pg_catalog.jsonb_each(c.stop_delays) d
-    where pg_catalog.jsonb_typeof(d.value) = 'number' and d.key ~ '^[0-9]+$'
+    -- 9 chiffres au plus : le cast ::int ne peut pas déborder et faire échouer toute la requête.
+    where pg_catalog.jsonb_typeof(d.value) = 'number' and d.key ~ '^[0-9]{1,9}$'
     order by d.key::int desc limit 1
   ) l on true
   cross join lateral (
@@ -39,6 +40,9 @@ language sql stable security invoker set search_path = '' as $$
     left join public.stops s on s.stop_id = p.stop_id
     where p.service_date = c.service_date and p.trip_id = c.trip_id
   ) st
+  -- Fenêtre calculée sur l'arrivée du plan (trips_planned), comme circulation_measures et stats_period :
+  -- le collecteur recopie cette valeur dans circulations à chaque passage, l'écart ne dure qu'entre
+  -- un réimport et le passage suivant.
   -- Un train après minuit peut relever du jour de service de la veille.
   where c.service_date >= (p_now at time zone 'Europe/Paris')::date - 1
     and not public.circulation_finished(t.arr_planned, c.terminus_delay_s, false, p_now)
