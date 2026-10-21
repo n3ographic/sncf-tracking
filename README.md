@@ -102,7 +102,7 @@ Le site n'utilise que la clé publique (`SUPABASE_ANON_KEY`), soumise aux droits
 
 La page d'accueil affiche les TGV en circulation (MapLibre GL, fond OpenFreeMap, données OpenStreetMap). Un point par train, vert à l'heure, orange à partir de 5 min de retard, rouge à partir de 30 min, gris si annulé. Un clic ouvre le trajet, le retard, la cause et l'indemnité théorique par voyageur. Filtres par marque et par axe, compteur de trains en retard. La page lit `/api/live` toutes les minutes.
 
-**Les positions sont estimées, pas mesurées.** Entre le dernier arrêt portant un retard et le suivant, le train avance en ligne droite, à retard constant, depuis son départ corrigé jusqu'à son arrivée corrigée. Un train dont le dernier passage du collecteur date de plus de 10 min est estompé (« donnée périmée »). Les tracés réels des voies (SNCF Réseau) sont prévus à l'étape suivante.
+**Les positions sont estimées, pas mesurées.** Entre le dernier arrêt portant un retard et le suivant, le train avance en ligne droite, à retard constant, depuis son départ corrigé jusqu'à son arrivée corrigée. Un train dont le dernier passage du collecteur date de plus de 10 min est estompé (« donnée périmée »). Entre deux arrêts, le train suit le tracé des voies (fichier `web/public/trace-paires.json`, précalculé par `npm run build:traces` à partir du fichier de formes des lignes de SNCF Réseau, plus court chemin sur le graphe des lignes) ; sans tracé connu pour la paire d'arrêts (gare hors du jeu, détour jugé aberrant, nouvelle paire après un changement de plan de transport), il avance en ligne droite. Le fichier de tracés est une base dérivée, sous licence ODbL : contient des informations de SNCF Réseau, sous licence ODbL.
 
 ## Développement
 

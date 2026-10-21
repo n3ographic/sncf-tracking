@@ -6,6 +6,8 @@ import {
   applyFilters, axes, delayClass, isStale, lateCount, toFeatureCollection,
   type Filters, type LiveItem,
 } from '../lib/map-model';
+import { makeSegment, type TraceTable } from '../lib/traces';
+import type { Lngl } from '../lib/position';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 const REFRESH_MS = 60_000;
@@ -42,6 +44,7 @@ export default function CarteView() {
   const [filters, setFilters] = useState<Filters>({ brand: 'ALL', axis: 'ALL' });
   const trainsRef = useRef<LiveItem[]>([]);
   const filtersRef = useRef(filters);
+  const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
   trainsRef.current = trains;
   filtersRef.current = filters;
 
@@ -51,7 +54,7 @@ export default function CarteView() {
     let cancelled = false;
     const refresh = () => {
       const src = map?.getSource('trains') as { setData(d: unknown): void } | undefined;
-      src?.setData(toFeatureCollection(applyFilters(trainsRef.current, filtersRef.current), new Date()));
+      src?.setData(toFeatureCollection(applyFilters(trainsRef.current, filtersRef.current), new Date(), pathRef.current));
       setNow(Date.now());
     };
     const timer = setInterval(refresh, 1000);
@@ -87,6 +90,21 @@ export default function CarteView() {
       });
     })();
     return () => { cancelled = true; clearInterval(timer); map?.remove(); mapRef.current = null; };
+  }, []);
+
+  // Tracés des voies : chargés une fois ; sans eux (échec, contenu invalide) les trains avancent en ligne droite.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/trace-paires.json');
+        const table = (await r.json()) as TraceTable;
+        if (alive && r.ok && table.pairs && typeof table.pairs === 'object') pathRef.current = makeSegment(table);
+      } catch {
+        /* repli silencieux : lignes droites */
+      }
+    })();
+    return () => { alive = false; };
   }, []);
 
   // Données : au montage puis toutes les minutes ; en cas d'échec on garde les derniers trains.

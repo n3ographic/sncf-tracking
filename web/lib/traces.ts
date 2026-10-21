@@ -11,11 +11,16 @@ export function pairKey(a: Lngl, b: Lngl): string {
   return `${x}|${y}`;
 }
 
-// Tracé précalculé si la paire est connue (inversé au besoin), sinon ligne droite.
+const d2 = (p: Lngl, q: Lngl) => (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2;
+
+// Tracé précalculé si la paire est connue, sinon ligne droite. Les extrémités du tracé sont des nœuds du
+// réseau (jusqu'à 1 km des gares) : le sens se décide par proximité, et les gares ferment la polyligne.
 export function makeSegment(table: TraceTable): (a: Lngl, b: Lngl) => Lngl[] {
   return (a, b) => {
-    const line = table.pairs[pairKey(a, b)];
+    const line = table.pairs[pairKey(a, b)] as Lngl[] | undefined;
     if (!line) return [a, b];
-    return pt(line[0]) === pt(a) ? line : [...line].reverse();
+    const first = line[0], last = line[line.length - 1];
+    const forward = d2(first, a) + d2(last, b) <= d2(first, b) + d2(last, a);
+    return [a, ...(forward ? line : [...line].reverse()), b];
   };
 }

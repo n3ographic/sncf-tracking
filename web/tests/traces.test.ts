@@ -13,8 +13,18 @@ test('pairKey : identique dans les deux sens, arrondi à 3 décimales', () => {
 test('makeSegment : tracé stocké, inversé dans l’autre sens, repli droit', () => {
   const line: [number, number][] = [[2.333, 48.844], [3.5, 47], [4.859, 45.76]];
   const seg = makeSegment({ pairs: { [pairKey(A, B)]: line } });
-  expect(seg(A, B)).toEqual(line);
-  expect(seg(B, A)).toEqual([...line].reverse());
+  expect(seg(A, B)).toEqual([A, ...line, B]);
+  expect(seg(B, A)).toEqual([B, ...[...line].reverse(), A]);
   expect(seg(A, [1, 1])).toEqual([A, [1, 1]]);
   expect(makeSegment({ pairs: {} })(A, B)).toEqual([A, B]);
+});
+
+test('makeSegment : extrémités du tracé = nœuds du réseau à plusieurs centaines de mètres des gares', () => {
+  // Le premier point du tracé n'est pas la gare : le sens se décide par proximité, pas par égalité.
+  const line: [number, number][] = [[2.338, 48.846], [3.5, 47], [4.855, 45.763]]; // ≈ 500 m de A et de B
+  const seg = makeSegment({ pairs: { [pairKey(A, B)]: line } });
+  expect(seg(A, B)).toEqual([A, ...line, B]);
+  expect(seg(B, A)).toEqual([B, ...[...line].reverse(), A]);
+  const rev = makeSegment({ pairs: { [pairKey(A, B)]: [...line].reverse() } });
+  expect(rev(A, B)).toEqual([A, ...line, B]);
 });
