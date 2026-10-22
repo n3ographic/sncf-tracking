@@ -1,10 +1,5 @@
-import CarteView from './carte-view';
+import TerminalView from './terminal/terminal-view';
 
 export default function Home() {
-  return (
-    <main>
-      <h1 className="sr-only">Observatoire TGV : carte des trains en circulation</h1>
-      <CarteView />
-    </main>
-  );
+  return <TerminalView />;
 }

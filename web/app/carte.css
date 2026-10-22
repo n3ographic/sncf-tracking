@@ -1,25 +1,16 @@
-.carte { position: fixed; inset: 0; }
-.carte-map { position: absolute; inset: 0; }
-.carte-bar {
-  position: absolute; top: 12px; left: 16px; right: 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
-  padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; max-width: 560px;
-}
-.carte-bar label { display: flex; gap: 6px; align-items: center; font-size: 14px; }
-.carte-bar select { font: inherit; padding: 4px; }
-.carte-count { margin: 0; font-size: 14px; font-weight: 600; }
-.carte-banner {
-  position: absolute; top: 76px; left: 16px; right: 16px; margin: 0; padding: 8px 12px; max-width: 560px;
-  background: var(--warn); border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
-}
-.carte-foot {
-  position: absolute; bottom: 44px; left: 16px; right: 56px; margin: 0; padding: 4px 8px; width: fit-content; max-width: calc(100% - 72px);
-  background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 12px;
-}
-.popup p { margin: 0 0 4px; font-size: 14px; color: #1b1b1b; }
-.popup .popup-title { font-weight: 700; }
-.popup .popup-cause { font-size: 12px; color: #555555; }
-.popup .popup-note { font-size: 12px; color: #555555; font-style: italic; }
-@media (max-width: 480px) { .carte-bar { flex-direction: column; align-items: stretch; } }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.carte-link { font-size: 14px; color: inherit; }
-.carte-check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+.carte { position: relative; display: flex; flex-direction: column; padding: 0; min-height: 0; }
+.carte-map { flex: 1; min-height: 320px; }
+.carte-ctrl { border-bottom: 1px solid var(--t-line); padding: 4px 8px; font-size: 12px; }
+.carte-ctrl summary { cursor: pointer; color: var(--t-amber-dim); }
+.carte-ctrl-row { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding-top: 4px; }
+.carte-ctrl label { display: flex; gap: 6px; align-items: center; }
+.carte-ctrl select { font: inherit; background: var(--t-bg); color: var(--t-amber); border: 1px solid var(--t-line); padding: 2px 4px; }
+.carte-ctrl input[type='checkbox'] { accent-color: var(--t-amber); }
+.carte-count { margin: 0; padding: 4px 8px; border-top: 1px solid var(--t-line); font-size: 12px; }
+.carte-banner { position: absolute; top: 40px; left: 8px; right: 8px; margin: 0; padding: 4px 8px; background: #1f0606; color: var(--t-severe); border: 1px solid var(--t-severe); font-size: 12px; z-index: 2; }
+.maplibregl-popup-content { background: var(--t-panel); color: var(--t-amber); border: 1px solid var(--t-amber); border-radius: 0; padding: 8px 10px; font-family: var(--font-term), monospace; }
+.maplibregl-popup-tip { border-top-color: var(--t-amber) !important; border-bottom-color: var(--t-amber) !important; }
+.maplibregl-popup-close-button { color: var(--t-amber); }
+.popup p { margin: 0 0 4px; font-size: 12px; }
+.popup .popup-title { color: #000; background: var(--t-amber); display: inline-block; padding: 0 4px; font-weight: 600; }
+.popup .popup-cause, .popup .popup-note { color: var(--t-amber-dim); font-size: 11px; }

@@ -3,18 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as MlMap } from 'maplibre-gl';
 import {
-  applyFilters, axes, delayClass, isStale, lateCount, toFeatureCollection,
+  applyFilters, axes, isStale, lateCount, toFeatureCollection,
   type Filters, type LiveItem,
 } from '../lib/map-model';
 import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from '../lib/traces';
-import type { Lngl } from '../lib/position';
-import type { Cumul } from '../lib/cumul';
+import { estimatePosition, type Lngl } from '../lib/position';
+import { delayTone, type Tone } from '../lib/terminal-model';
 
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
-const REFRESH_MS = 60_000;
-const COLORS = { ontime: '#1a9850', late: '#f39c12', severe: '#d73027', cancelled: '#888888' };
-const LABELS = { ontime: 'à l’heure', late: 'en retard', severe: 'très en retard', cancelled: 'annulé' };
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
+const TONE_COLORS: Record<Tone, string> = { ontime: '#3ad13a', late: '#ffd24d', strong: '#ff8c00', severe: '#ff4d4d', cancelled: '#8a8a8a' };
+const TONE_LABELS: Record<Tone, string> = { ontime: 'À L’HEURE', late: 'RETARD', strong: 'FORT RETARD', severe: 'TRÈS FORT RETARD', cancelled: 'ANNULÉ' };
+type MapLibre = typeof import('maplibre-gl');
 
+// Fenêtre au clic : nœuds DOM uniquement (textContent), jamais de HTML venant des données.
 function popupContent(t: LiveItem, now: Date): HTMLElement {
   const root = document.createElement('div');
   root.className = 'popup';
@@ -24,27 +25,28 @@ function popupContent(t: LiveItem, now: Date): HTMLElement {
     if (cls) p.className = cls;
     root.appendChild(p);
   };
-  const cls = delayClass(t);
+  const tone = delayTone(t.delay_s, t.cancelled);
   line(`${t.brand} ${t.train_number}`, 'popup-title');
   if (t.origin && t.dest) line(`${t.origin} → ${t.dest}`);
-  line(cls === 'cancelled' ? 'Annulé' : `Retard : ${Math.round(Math.max(t.delay_s ?? 0, 0) / 60)} min (${LABELS[cls]})`);
+  line(tone === 'cancelled' ? 'ANNULÉ' : `RETARD ${Math.round(Math.max(t.delay_s ?? 0, 0) / 60)}′ · ${TONE_LABELS[tone]}`, `tone-${tone}`);
   if (t.cause) line(t.cause, 'popup-cause');
-  if (t.comp_eur_per_passenger_ref > 0) line(`Indemnité théorique : ${t.comp_eur_per_passenger_ref.toFixed(2)} € par voyageur (HT)`);
+  if (t.comp_eur_per_passenger_ref > 0) line(`INDEMNITÉ THÉORIQUE ${t.comp_eur_per_passenger_ref.toFixed(2)} € / VOYAGEUR HT`);
   line('Position estimée.', 'popup-note');
   if (isStale(t, now)) line('Donnée périmée : le train n’a pas été vu récemment.', 'popup-note');
   return root;
 }
 
-export default function CarteView() {
+export type Focus = { trip_id: string; at: number } | null;
+
+export default function CarteView({ trains, failed, lastOk, focus }: {
+  trains: LiveItem[]; failed: boolean; lastOk: number | null; focus: Focus;
+}) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
-  const [trains, setTrains] = useState<LiveItem[]>([]);
-  const [cumul, setCumul] = useState<Cumul | null>(null);
-  const [lastOk, setLastOk] = useState<number | null>(null);
-  const [failed, setFailed] = useState(false);
+  const mlRef = useRef<MapLibre | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [filters, setFilters] = useState<Filters>({ brand: 'ALL', axis: 'ALL' });
-  const trainsRef = useRef<LiveItem[]>([]);
+  const trainsRef = useRef<LiveItem[]>(trains);
   const filtersRef = useRef(filters);
   const showTracksRef = useRef(true);
   const tracksRef = useRef<LineCollection | null>(null);
@@ -54,6 +56,12 @@ export default function CarteView() {
   const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
   trainsRef.current = trains;
   filtersRef.current = filters;
+
+  const openPopup = (t: LiveItem, at: [number, number]) => {
+    const ml = mlRef.current, m = mapRef.current;
+    if (!ml || !m) return;
+    new ml.Popup({ maxWidth: '320px' }).setLngLat(at).setDOMContent(popupContent(t, new Date())).addTo(m);
+  };
 
   // Carte : montée côté navigateur uniquement.
   useEffect(() => {
@@ -66,7 +74,15 @@ export default function CarteView() {
     };
     const refresh = () => {
       const src = map?.getSource('trains') as { setData(d: unknown): void } | undefined;
-      src?.setData(toFeatureCollection(applyFilters(trainsRef.current, filtersRef.current), new Date(), pathRef.current));
+      if (src) {
+        const byId = new Map(trainsRef.current.map((t) => [t.trip_id, t]));
+        const fc = toFeatureCollection(applyFilters(trainsRef.current, filtersRef.current), new Date(), pathRef.current);
+        for (const f of fc.features) {
+          const t = byId.get(f.properties.trip_id);
+          (f.properties as typeof f.properties & { tone: Tone }).tone = t ? delayTone(t.delay_s, t.cancelled) : 'ontime';
+        }
+        src.setData(fc);
+      }
       setNow(Date.now());
     };
     const timer = setInterval(refresh, 1000);
@@ -75,6 +91,7 @@ export default function CarteView() {
       // Le worker de la v6 n'est pas résolu par webpack : copié dans public/ par predev et prebuild.
       maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
       if (cancelled || !container.current) return;
+      mlRef.current = maplibregl;
       const m = new maplibregl.Map({ container: container.current, style: STYLE_URL, center: [2.5, 46.6], zoom: 5, attributionControl: { compact: true } });
       map = m;
       mapRef.current = m;
@@ -84,24 +101,24 @@ export default function CarteView() {
         m.addLayer({
           id: 'voies', type: 'line', source: 'voies',
           layout: { visibility: showTracksRef.current ? 'visible' : 'none', 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#6b7280', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 9, 2], 'line-opacity': 0.7 },
+          paint: { 'line-color': '#7a5200', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 9, 2], 'line-opacity': 0.9 },
         });
         applyTracksRef.current();
         m.addSource('trains', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         m.addLayer({
           id: 'trains', type: 'circle', source: 'trains',
           paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4, 9, 8],
-            'circle-color': ['match', ['get', 'cls'], 'late', COLORS.late, 'severe', COLORS.severe, 'cancelled', COLORS.cancelled, COLORS.ontime],
-            'circle-opacity': ['case', ['get', 'stale'], 0.4, 0.95],
-            'circle-stroke-width': 1.5, 'circle-stroke-color': '#ffffff',
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3.5, 9, 7],
+            'circle-color': ['match', ['get', 'tone'],
+              'late', TONE_COLORS.late, 'strong', TONE_COLORS.strong, 'severe', TONE_COLORS.severe, 'cancelled', TONE_COLORS.cancelled, TONE_COLORS.ontime],
+            'circle-opacity': ['case', ['get', 'stale'], 0.4, 1],
+            'circle-stroke-width': 1, 'circle-stroke-color': '#0a0a0a',
           },
         });
         m.on('click', 'trains', (e) => {
           const id = e.features?.[0]?.properties?.trip_id;
           const t = trainsRef.current.find((x) => x.trip_id === id);
-          if (!t) return;
-          new maplibregl.Popup({ maxWidth: '320px' }).setLngLat(e.lngLat).setDOMContent(popupContent(t, new Date())).addTo(map!);
+          if (t) openPopup(t, [e.lngLat.lng, e.lngLat.lat]);
         });
         m.on('mouseenter', 'trains', () => { m.getCanvas().style.cursor = 'pointer'; });
         m.on('mouseleave', 'trains', () => { m.getCanvas().style.cursor = ''; });
@@ -110,6 +127,16 @@ export default function CarteView() {
     })();
     return () => { cancelled = true; clearInterval(timer); map?.remove(); mapRef.current = null; };
   }, []);
+
+  // Centrage demandé depuis le top des retards : sans position estimée, rien ne se passe.
+  useEffect(() => {
+    if (!focus) return;
+    const t = trainsRef.current.find((x) => x.trip_id === focus.trip_id);
+    const e = t ? estimatePosition(t, new Date(), pathRef.current) : null;
+    if (!t || !e || !mapRef.current) return;
+    mapRef.current.flyTo({ center: [e.lon, e.lat], zoom: 8 });
+    openPopup(t, [e.lon, e.lat]);
+  }, [focus]);
 
   // Case « Afficher les voies » : bascule la visibilité de la couche une fois la carte prête.
   useEffect(() => {
@@ -138,82 +165,45 @@ export default function CarteView() {
     return () => { alive = false; };
   }, []);
 
-  // Compteur cumulé : une seule lecture ; en cas d'échec, aucun compteur et aucun message.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch('/api/cumul');
-        const d = (await r.json()) as Cumul;
-        if (alive && r.ok && Array.isArray(d.by_brand) && d.days > 0) setCumul(d);
-      } catch {
-        /* pas de compteur */
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  // Données : au montage puis toutes les minutes ; en cas d'échec on garde les derniers trains.
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const r = await fetch('/api/live');
-        if (!r.ok) throw new Error(String(r.status));
-        const d = (await r.json()) as { trains: LiveItem[] };
-        if (!alive) return;
-        setTrains(d.trains);
-        setLastOk(Date.now());
-        setFailed(false);
-      } catch {
-        if (alive) setFailed(true);
-      }
-    };
-    load();
-    const t = setInterval(load, REFRESH_MS);
-    return () => { alive = false; clearInterval(t); };
-  }, []);
-
   const shown = useMemo(() => applyFilters(trains, filters), [trains, filters]);
+  const moving = useMemo(() => {
+    const at = new Date(now);
+    return shown.filter((t) => estimatePosition(t, at, pathRef.current)?.state === 'moving').length;
+  }, [shown, now]);
   const staleMin = failed && lastOk ? Math.max(1, Math.round((now - lastOk) / 60000)) : null;
 
   return (
-    <div className="carte">
-      <div ref={container} className="carte-map" />
-      <div className="carte-bar">
-        <label>Marque
-          <select autoComplete="off" value={filters.brand} onChange={(e) => setFilters({ ...filters, brand: e.target.value as Filters['brand'] })}>
-            <option value="ALL">Toutes</option><option value="INOUI">INOUI</option><option value="OUIGO">OUIGO</option>
-          </select>
-        </label>
-        <label>Axe
-          <select autoComplete="off" value={filters.axis} onChange={(e) => setFilters({ ...filters, axis: e.target.value })}>
-            <option value="ALL">Tous</option>
-            {axes(trains).map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </label>
-        {hasTracks && (
-          <label className="carte-check">
-            <input type="checkbox" checked={showTracks} onChange={(e) => setShowTracks(e.target.checked)} /> Afficher les voies
+    <section className="carte term-panel" aria-label="Carte des trains en circulation">
+      <details className="carte-ctrl" open>
+        <summary>FILTRES</summary>
+        <div className="carte-ctrl-row">
+          <label>MARQUE
+            <select autoComplete="off" value={filters.brand} onChange={(e) => setFilters({ ...filters, brand: e.target.value as Filters['brand'] })}>
+              <option value="ALL">TOUTES</option><option value="INOUI">INOUI</option><option value="OUIGO">OUIGO</option>
+            </select>
           </label>
-        )}
-        <p className="carte-count" aria-live="polite">{lateCount(shown)} trains en retard sur {shown.length}</p>
-        {cumul && (
-          <a className="carte-link" href="/tableau" title={`Observé seulement, couverture ${cumul.coverage_pct === null ? '—' : cumul.coverage_pct.toLocaleString('fr-FR')} % des trains prévus`}>
-            Indemnités théoriques cumulées : {Math.round(cumul.cost_eur_ht).toLocaleString('fr-FR')} € HT
-          </a>
-        )}
-        <a className="carte-link" href="/tableau">Tableau de bord</a>
-        <a className="carte-link" href="/methodologie">Méthodologie</a>
-      </div>
+          <label>AXE
+            <select autoComplete="off" value={filters.axis} onChange={(e) => setFilters({ ...filters, axis: e.target.value })}>
+              <option value="ALL">TOUS</option>
+              {axes(trains).map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </label>
+          {hasTracks && (
+            <label>
+              <input type="checkbox" checked={showTracks} onChange={(e) => setShowTracks(e.target.checked)} /> VOIES
+            </label>
+          )}
+        </div>
+      </details>
+      <div ref={container} className="carte-map" />
       {failed && (
         <p className="carte-banner" role="status">
-          {staleMin === null ? 'Données indisponibles.' : `Données non actualisées depuis ${staleMin} min.`}
+          {staleMin === null ? 'DONNÉES INDISPONIBLES' : `DONNÉES NON ACTUALISÉES DEPUIS ${staleMin} MIN`}
         </p>
       )}
-      <p className="carte-foot">
-        Positions estimées. Observatoire indépendant, non affilié à SNCF ni à OUIGO.
+      <p className="carte-count" aria-live="polite">
+        {shown.length} TRAINS · {moving} EN ROUTE · <span className="tone-strong">{lateCount(shown)} EN RETARD</span>
       </p>
-    </div>
+    </section>
   );
 }
