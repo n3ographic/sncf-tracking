@@ -37,7 +37,7 @@ test('succès : 200, JSON et Cache-Control exact (stats et temps réel)', async 
 
   const l = await createLiveHandler(okDeps())(new Request('http://x/api/live'));
   expect(l.status).toBe(200);
-  expect(l.headers.get('cache-control')).toBe('public, s-maxage=300, stale-while-revalidate=60');
+  expect(l.headers.get('cache-control')).toBe('public, s-maxage=60, stale-while-revalidate=60');
   const body = await l.json();
   expect(body.generated_at).toBe('2026-10-21T10:00:00.000Z');
   expect(body.trains[0].comp_eur_per_passenger_ref).toBe(23.3);

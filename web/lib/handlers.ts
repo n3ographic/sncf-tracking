@@ -14,7 +14,8 @@ export type Deps = {
 };
 
 const STATS_CACHE = 'public, s-maxage=900, stale-while-revalidate=300';
-const LIVE_CACHE = 'public, s-maxage=300, stale-while-revalidate=60';
+// CDN court : le Data Cache (300 s) protège déjà Supabase ; deux caches de 5 min empilés vieillissaient les données jusqu'à ~14 min.
+const LIVE_CACHE = 'public, s-maxage=60, stale-while-revalidate=60';
 const RULES_CACHE = 'public, s-maxage=3600, stale-while-revalidate=600';
 const CUMUL_CACHE = 'public, s-maxage=3600, stale-while-revalidate=600';
 
