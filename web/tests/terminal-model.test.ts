@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { axisRegularity, charBar, collectStatus, delayTone, tickerItems, topDelays } from '../lib/terminal-model';
+import { axisRegularity, bucketBar, charBar, collectStatus, delayTone, periodLabel, periodQuery, tickerItems, topDelays } from '../lib/terminal-model';
 import type { LiveItem } from '../lib/map-model';
 import type { Group } from '../lib/stats';
 
@@ -57,4 +57,28 @@ test('charBar : pleins et demi-cellule, vide à 0 ou null', () => {
   expect(charBar(55, 10)).toBe('█'.repeat(5) + '▌');
   expect(charBar(0, 10)).toBe('');
   expect(charBar(null, 10)).toBe('');
+});
+
+test('periodQuery : jours en period, mois en month', () => {
+  expect(periodQuery('7d')).toBe('period=7d');
+  expect(periodQuery('31d')).toBe('period=31d');
+  expect(periodQuery('2026-10')).toBe('month=2026-10');
+});
+
+test('periodLabel : 7J, 14J, 31J, mois abrégé en majuscules', () => {
+  expect(['7d', '14d', '31d'].map(periodLabel)).toEqual(['7J', '14J', '31J']);
+  expect(periodLabel('2026-10')).toBe('OCT. 2026');
+  expect(periodLabel('2027-02')).toBe('FÉVR. 2027');
+  expect(periodLabel('2027-05')).toBe('MAI 2027');
+});
+
+test('bucketBar : largeur exacte, plus forts restes, vide sans train', () => {
+  const sum = (s: { len: number }[]) => s.reduce((a, x) => a + x.len, 0);
+  expect(bucketBar({}, 12)).toEqual([]);
+  const even = bucketBar({ '0': 1, '5-14': 1, '60-119': 1 }, 12);
+  expect(even.map((s) => [s.i, s.len])).toEqual([[0, 4], [2, 4], [5, 4]]);
+  const skew = bucketBar({ '0': 99, '180+': 1 }, 12);
+  expect(sum(skew)).toBe(12);
+  expect(skew.every((s) => s.len > 0)).toBe(true);
+  expect(sum(bucketBar({ '0': 1, '1-4': 1, '5-14': 1 }, 10))).toBe(10);
 });

@@ -1,4 +1,4 @@
-import { SAMPLE_MIN } from './dashboard-model';
+import { SAMPLE_MIN, TERMINUS_BUCKETS } from './dashboard-model';
 import type { LiveItem } from './map-model';
 import type { Group } from './stats';
 
@@ -59,4 +59,31 @@ export function charBar(pct: number | null, width: number): string {
   const cells = (Math.min(pct, 100) / 100) * width;
   const full = Math.floor(cells);
   return '█'.repeat(full) + (cells - full >= 0.5 ? '▌' : '');
+}
+
+// Période des statistiques : '7d', '14d', '31d' ou un mois 'AAAA-MM'.
+export type Period = string;
+export const FIXED_PERIODS = ['7d', '14d', '31d'] as const;
+const MONTHS = ['JANV.', 'FÉVR.', 'MARS', 'AVR.', 'MAI', 'JUIN', 'JUIL.', 'AOÛT', 'SEPT.', 'OCT.', 'NOV.', 'DÉC.'];
+
+export function periodQuery(p: Period): string {
+  return /^\d+d$/.test(p) ? `period=${p}` : `month=${p}`;
+}
+
+export function periodLabel(p: Period): string {
+  if (/^\d+d$/.test(p)) return `${p.slice(0, -1)}J`;
+  const [y, m] = p.split('-');
+  return `${MONTHS[Number(m) - 1]} ${y}`;
+}
+
+// Barre de tranches en caractères : `width` cases réparties par plus forts restes ; une tranche trop petite peut disparaître.
+export function bucketBar(buckets: Record<string, number>, width: number): { i: number; bucket: string; len: number }[] {
+  const ns = TERMINUS_BUCKETS.map((b) => buckets[b] ?? 0);
+  const total = ns.reduce((a, n) => a + n, 0);
+  if (total === 0) return [];
+  const exact = ns.map((n) => (n / total) * width);
+  const lens = exact.map(Math.floor);
+  const order = exact.map((x, i) => i).sort((a, b) => (exact[b] - lens[b]) - (exact[a] - lens[a]) || a - b);
+  for (let k = width - lens.reduce((a, n) => a + n, 0), j = 0; k > 0; k--, j++) lens[order[j]]++;
+  return TERMINUS_BUCKETS.map((bucket, i) => ({ i, bucket, len: lens[i] })).filter((s) => s.len > 0);
 }
