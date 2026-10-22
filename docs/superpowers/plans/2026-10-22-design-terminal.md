@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Thème sombre unique ; jetons CSS : fond `#0a0a0a`, panneau `#0f0f0f`, ambre `#ffb000`, ambre atténué `#a07000`, filets `#4a3200`, à l'heure `#3ad13a`, retard `#ffd24d`, fort retard `#ff8c00`, très fort retard `#ff4d4d`, annulé `#8a8a8a`.
+- Thème sombre unique ; jetons CSS : fond `#0a0a0a`, panneau `#0f0f0f`, ambre `#ffb000`, ambre atténué `#b07c00`, filets `#4a3200`, à l'heure `#3ad13a`, retard `#ffd24d`, fort retard `#ff8c00`, très fort retard `#ff4d4d`, annulé `#8a8a8a`.
 - Tons de retard : `ontime` < 300 s, `late` 300–1 799 s, `strong` 1 800–3 599 s, `severe` ≥ 3 600 s, `cancelled` prioritaire ; les classes de la carte (`delayClass`) et leurs seuils restent inchangés.
 - Police IBM Plex Mono via `next/font/google` (poids 400 et 600), aucun appel externe à l'exécution ; fond de carte `https://tiles.openfreemap.org/styles/dark`.
 - Collecte « OK » si le `last_seen_at` le plus récent a moins de 600 s, sinon « EN RETARD » ; « INCONNU » si `/api/live` échoue.

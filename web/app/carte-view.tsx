@@ -53,6 +53,9 @@ export default function CarteView({ trains, failed, lastOk, focus }: {
   const applyTracksRef = useRef<() => void>(() => {});
   const [hasTracks, setHasTracks] = useState(false);
   const [showTracks, setShowTracks] = useState(true);
+  // Filtres dépliés sur grand écran, repliés sur mobile (lu après montage : pas d'écart d'hydratation).
+  const [ctrlOpen, setCtrlOpen] = useState(true);
+  useEffect(() => { if (window.matchMedia('(max-width: 899px)').matches) setCtrlOpen(false); }, []);
   const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
   trainsRef.current = trains;
   filtersRef.current = filters;
@@ -174,7 +177,7 @@ export default function CarteView({ trains, failed, lastOk, focus }: {
 
   return (
     <section className="carte term-panel" aria-label="Carte des trains en circulation">
-      <details className="carte-ctrl" open>
+      <details className="carte-ctrl" open={ctrlOpen} onToggle={(e) => setCtrlOpen(e.currentTarget.open)}>
         <summary>FILTRES</summary>
         <div className="carte-ctrl-row">
           <label>MARQUE

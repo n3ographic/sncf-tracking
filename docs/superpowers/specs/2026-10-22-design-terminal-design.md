@@ -18,7 +18,7 @@ Hors périmètre : nouvelles données, journal d'événements (la table `events`
 ## Style
 
 - Thème sombre unique ; mode clair supprimé.
-- Jetons de couleur (variables CSS) : fond `#0a0a0a`, panneau `#0f0f0f`, texte ambre `#ffb000`, ambre atténué `#a07000` (texte secondaire, contraste ≥ 4,5:1 sur le fond), filets `#4a3200` ; retards : à l'heure `#3ad13a`, retard `#ffd24d` (5-29 min), fort retard `#ff8c00`, très fort retard `#ff4d4d` (≥ 60 min), annulé `#8a8a8a`. Les classes de la carte gardent leurs seuils (`ontime` < 5 min, `late` ≥ 5 min, `severe` ≥ 30 min) ; la couleur rouge s'ajoute pour 60 min et plus.
+- Jetons de couleur (variables CSS) : fond `#0a0a0a`, panneau `#0f0f0f`, texte ambre `#ffb000`, ambre atténué `#b07c00` (texte secondaire, contraste ≥ 4,5:1 sur le fond et sur les panneaux ; `#a07000` prévu au départ ne donnait que 4,4:1 sur les panneaux), filets `#4a3200` ; retards : à l'heure `#3ad13a`, retard `#ffd24d` (5-29 min), fort retard `#ff8c00`, très fort retard `#ff4d4d` (≥ 60 min), annulé `#8a8a8a`. Les classes de la carte gardent leurs seuils (`ontime` < 5 min, `late` ≥ 5 min, `severe` ≥ 30 min) ; la couleur rouge s'ajoute pour 60 min et plus.
 - Police IBM Plex Mono (`next/font/google`, embarquée au build), chiffres alignés ; étiquettes de panneau en majuscules sur bloc ambre.
 - Panneaux : filet de 1 px, pas d'ombre ni de dégradé ni de lueur.
 - `/tableau` et `/methodologie` : même barre d'état et barre du bas, contenus restylés dans les mêmes jetons (tableaux, barres, avertissements), structure inchangée.
