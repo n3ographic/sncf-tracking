@@ -1,4 +1,5 @@
 :root {
+  --seg0: #3ad13a; --seg1: #8fd13a; --seg2: #ffd24d; --seg3: #ffb000; --seg4: #ff8c00; --seg5: #ff4d4d; --seg6: #d12f2f; --seg7: #8f1d1d;
   --t-bg: #0a0a0a; --t-panel: #0f0f0f; --t-amber: #ffb000; --t-amber-dim: #b07c00; --t-line: #4a3200;
   --t-ontime: #3ad13a; --t-late: #ffd24d; --t-strong: #ff8c00; --t-severe: #ff4d4d; --t-cancelled: #8a8a8a;
   --bg: var(--t-bg); --fg: var(--t-amber); --muted: var(--t-amber-dim); --line: var(--t-line); --warn: #1f1600;
@@ -30,6 +31,20 @@ a { color: inherit; }
 .period button[aria-pressed="true"], .period select.on { background: var(--t-amber); color: #000; }
 .kpi-list { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
 .kpi-list dt { color: var(--t-amber-dim); }
+.term-center { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+.term-center .carte { flex: 62 1 0; }
+.term-center .carte-map { min-height: 0; }
+.groups { flex: 38 1 0; min-height: 150px; display: flex; flex-direction: column; font-size: 12px; }
+.groups > .term-panel-title { align-self: flex-start; }
+.groups-scroll { flex: 1; min-height: 0; overflow: auto; }
+.groups table { width: 100%; border-collapse: collapse; }
+.groups th, .groups td { padding: 1px 8px 1px 0; text-align: left; white-space: nowrap; border-bottom: 1px dotted var(--t-line); font-weight: 400; }
+.groups thead th { position: sticky; top: 0; background: var(--t-panel); color: var(--t-amber-dim); text-transform: uppercase; }
+.groups-bar { white-space: pre; letter-spacing: -1px; }
+.groups-foot { margin: 4px 0 0; font-size: 11px; }
+.term-btn { font: inherit; background: var(--t-bg); color: var(--t-amber); border: 1px solid var(--t-amber); padding: 0 6px; cursor: pointer; }
+.seg-c.s0 { color: var(--seg0); } .seg-c.s1 { color: var(--seg1); } .seg-c.s2 { color: var(--seg2); } .seg-c.s3 { color: var(--seg3); }
+.seg-c.s4 { color: var(--seg4); } .seg-c.s5 { color: var(--seg5); } .seg-c.s6 { color: var(--seg6); } .seg-c.s7 { color: var(--seg7); }
 .kpi-list dd { margin: 0; text-align: right; font-size: 15px; }
 .big { font-size: 22px; font-weight: 600; margin: 2px 0 !important; }
 .top-list { list-style: none; margin: 0; padding: 0; }
@@ -51,8 +66,12 @@ a { color: inherit; }
 @media (max-width: 899px) {
   .term { height: auto; overflow: visible; }
   .term-grid { display: flex; flex-direction: column; }
-  .carte { order: -1; }
-  .carte-map { height: 60vh; flex: none; }
-  .term-col { overflow: visible; }
+  .term-col, .term-center { display: contents; }
+  .term-panel { order: 3; }
+  .carte { order: 0; }
+  .period-panel { order: 1; }
+  .groups { order: 2; flex: none; min-height: 0; }
+  .groups-scroll { overflow-x: auto; overflow-y: visible; }
+  .carte-map, .term-center .carte-map { height: 60vh; flex: none; }
 }
 .term-h1 { display: inline-block; background: var(--t-amber); color: #000; padding: 0 8px; margin: 8px 0 12px; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }

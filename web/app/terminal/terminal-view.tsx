@@ -7,6 +7,7 @@ import type { LiveItem } from '../../lib/map-model';
 import type { StatsPayload } from '../../lib/stats';
 import { collectStatus, periodQuery, tickerItems, type Period } from '../../lib/terminal-model';
 import FootBar from './foot-bar';
+import GroupsPanel from './groups-panel';
 import LeftPanel from './left-panel';
 import PeriodPicker from './period-picker';
 import RightPanel from './right-panel';
@@ -94,7 +95,10 @@ export default function TerminalView() {
       <main className="term-grid">
         <h1 className="sr-only">Observatoire TGV : trains en circulation, retards et indemnités théoriques</h1>
         <LeftPanel trains={trains} liveFailed={liveFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} onFocus={onFocus} />
-        <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} />
+        <div className="term-center">
+          <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} />
+          <GroupsPanel stats={stats} failed={statsFailed} loading={statsLoading} period={period} onRetry={reloadStats} />
+        </div>
         <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
       </main>
       <FootBar />
