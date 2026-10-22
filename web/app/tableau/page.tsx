@@ -1,17 +1,6 @@
-import FootBar from '../terminal/foot-bar';
-import StatusBar from '../terminal/status-bar';
-import TableauView from './tableau-view';
+import { permanentRedirect } from 'next/navigation';
 
-export const metadata = { title: 'Tableau de bord · Observatoire TGV' };
-
+// Les statistiques du tableau de bord sont sur l'écran d'accueil.
 export default function Page() {
-  return (
-    <>
-      <StatusBar />
-      <main className="tb">
-        <TableauView />
-      </main>
-      <FootBar />
-    </>
-  );
+  permanentRedirect('/');
 }

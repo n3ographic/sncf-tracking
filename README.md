@@ -119,7 +119,7 @@ La page d'accueil affiche les TGV en circulation (MapLibre GL, fond OpenFreeMap,
 
 ## Tableau de bord
 
-La page `/tableau` lit `/api/stats` : régularité officielle approchée, taux de suppression, répartition des retards au terminus et indemnités théoriques, par marque et par axe, sur 7, 14 ou 31 jours ou un mois. Chaque chiffre porte son effectif ; en dessous de 30 trains ayant circulé il est estompé (« échantillon trop petit »). Les causes de retard ne sont pas encore affichées.
+L'écran d'accueil lit aussi `/api/stats` : régularité officielle approchée, taux de suppression, répartition des retards au terminus et indemnités théoriques, au total et par marque et par axe (panneau « MARQUE × AXE » sous la carte), sur 7, 14 ou 31 jours ou un mois, au choix dans la barre du haut. L'ancienne page `/tableau` redirige vers l'accueil. Chaque chiffre porte son effectif ; en dessous de 30 trains ayant circulé il est estompé et marqué « n<30 ». Les causes de retard ne sont pas encore affichées.
 
 En tête, un bandeau « Depuis le 20 octobre 2026 » affiche le compteur cumulé des indemnités théoriques (observé seulement, couverture affichée, jamais extrapolé), lu dans `/api/cumul` ; la carte en reprend le montant.
 

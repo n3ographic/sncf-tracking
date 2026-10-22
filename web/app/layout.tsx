@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { IBM_Plex_Mono } from 'next/font/google';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './carte.css';
-import './tableau/tableau.css';
 import './methodologie/methodologie.css';
 import './terminal/terminal.css';
 
