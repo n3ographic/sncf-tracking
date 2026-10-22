@@ -1,0 +1,30 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+type Status = { status: 'ok' | 'late' | 'unknown'; ageMin: number | null };
+
+const COLLECT = {
+  ok: (age: number | null) => <span className="ok">COLLECTE OK{age !== null ? ` · ${age} MIN` : ''}</span>,
+  late: (age: number | null) => <span className="bad">COLLECTE EN RETARD{age !== null ? ` · ${age} MIN` : ''}</span>,
+  unknown: () => <span className="term-dim">COLLECTE INCONNUE</span>,
+};
+
+// Barre d'état commune : l'horloge n'est rendue qu'après montage (pas d'écart d'hydratation).
+export default function StatusBar({ status, coveragePct }: { status: Status | null; coveragePct: number | null }) {
+  const [clock, setClock] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () => setClock(new Date().toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris' }));
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <header className="term-bar">
+      <a href="/" className="term-logo">OBS·TGV</a>
+      <span>LIVE {clock ?? '--:--:--'} PARIS</span>
+      {status && COLLECT[status.status](status.ageMin)}
+      <span>COUV {coveragePct === null ? '—' : `${coveragePct.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} %`}</span>
+    </header>
+  );
+}
