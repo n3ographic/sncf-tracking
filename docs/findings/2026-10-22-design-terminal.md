@@ -19,3 +19,9 @@ Serveur de dev local, données réelles, navigateur intégré.
 
 - Pas de journal d'événements (table `events` non publique).
 - Non testé avec un lecteur d'écran réel ; la pause du bandeau au clavier passe par le focus du bandeau.
+
+## Production (https://sncf-tracking.vercel.app)
+
+`/`, `/tableau`, `/methodologie`, `/api/live`, `/api/cumul`, `/api/stats?period=7d`, `/trace-paires.json`, worker MapLibre : 200 ; police servie depuis le site (woff2) ; écran terminal rendu dans le navigateur (178 trains, 100 en route, 58 en retard, collecte OK, couverture 59,3 %), aucune erreur console.
+
+Défaut mineur restant : dans l'attribution de la carte, le texte « Data from » garde la couleur sombre par défaut de MapLibre (peu lisible) ; les liens sont corrects.
