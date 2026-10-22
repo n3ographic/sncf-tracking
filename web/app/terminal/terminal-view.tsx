@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CarteView, { type Focus } from '../carte-view';
 import type { Cumul } from '../../lib/cumul';
 import type { LiveItem } from '../../lib/map-model';
 import type { StatsPayload } from '../../lib/stats';
-import { collectStatus, tickerItems } from '../../lib/terminal-model';
+import { collectStatus, periodQuery, tickerItems, type Period } from '../../lib/terminal-model';
 import FootBar from './foot-bar';
 import LeftPanel from './left-panel';
+import PeriodPicker from './period-picker';
 import RightPanel from './right-panel';
 import StatusBar from './status-bar';
 import Ticker from './ticker';
@@ -23,6 +24,9 @@ export default function TerminalView() {
   const [cumulFailed, setCumulFailed] = useState(false);
   const [stats, setStats] = useState<StatsPayload | null>(null);
   const [statsFailed, setStatsFailed] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>('7d');
+  const statsSeq = useRef(0);
   const [focus, setFocus] = useState<Focus>(null);
 
   useEffect(() => {
@@ -57,18 +61,27 @@ export default function TerminalView() {
         if (alive) setCumulFailed(true);
       }
     })();
-    (async () => {
-      try {
-        const r = await fetch('/api/stats?period=7d');
-        const d = (await r.json()) as StatsPayload;
-        if (!r.ok || !Array.isArray(d.groups)) throw new Error(String(r.status));
-        if (alive) setStats(d);
-      } catch {
-        if (alive) setStatsFailed(true);
-      }
-    })();
     return () => { alive = false; };
   }, []);
+
+  // Seule la dernière période demandée écrit l'état : une réponse arrivée trop tard est ignorée.
+  const loadStats = useCallback(async (p: Period) => {
+    const mine = ++statsSeq.current;
+    setStatsLoading(true);
+    setStatsFailed(false);
+    try {
+      const r = await fetch(`/api/stats?${periodQuery(p)}`);
+      const d = (await r.json()) as StatsPayload;
+      if (!r.ok || !Array.isArray(d.groups) || !d.totals) throw new Error(String(r.status));
+      if (mine === statsSeq.current) setStats(d);
+    } catch {
+      if (mine === statsSeq.current) setStatsFailed(true);
+    } finally {
+      if (mine === statsSeq.current) setStatsLoading(false);
+    }
+  }, []);
+  useEffect(() => { loadStats(period); }, [period, loadStats]);
+  const reloadStats = useCallback(() => loadStats(period), [period, loadStats]);
 
   const onFocus = useCallback((trip_id: string) => setFocus({ trip_id, at: Date.now() }), []);
   const items = useMemo(() => tickerItems(trains, 15), [trains]);
@@ -76,13 +89,13 @@ export default function TerminalView() {
 
   return (
     <div className="term">
-      <StatusBar status={status} coveragePct={cumul?.coverage_pct ?? null} />
+      <StatusBar status={status} coveragePct={cumul?.coverage_pct ?? null} picker={<PeriodPicker value={period} onChange={setPeriod} />} />
       <Ticker items={items} failed={liveFailed} />
       <main className="term-grid">
         <h1 className="sr-only">Observatoire TGV : trains en circulation, retards et indemnités théoriques</h1>
-        <LeftPanel trains={trains} liveFailed={liveFailed} stats={stats} statsFailed={statsFailed} onFocus={onFocus} />
+        <LeftPanel trains={trains} liveFailed={liveFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} onFocus={onFocus} />
         <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} />
-        <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} />
+        <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
       </main>
       <FootBar />
     </div>
