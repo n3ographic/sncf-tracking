@@ -24,4 +24,13 @@ Serveur de dev local, données réelles, navigateur intégré.
 
 `/`, `/tableau`, `/methodologie`, `/api/live`, `/api/cumul`, `/api/stats?period=7d`, `/trace-paires.json`, worker MapLibre : 200 ; police servie depuis le site (woff2) ; écran terminal rendu dans le navigateur (178 trains, 100 en route, 58 en retard, collecte OK, couverture 59,3 %), aucune erreur console.
 
-Défaut mineur restant : dans l'attribution de la carte, le texte « Data from » garde la couleur sombre par défaut de MapLibre (peu lisible) ; les liens sont corrects.
+Défaut mineur restant : dans l'attribution de la carte, le texte « Data from » garde la couleur sombre par défaut de MapLibre (peu lisible) ; les liens sont corrects. Corrigé (commit `b05ba57`, `!important` sur la couleur) : ambre `rgb(176,124,0)` mesuré en production.
+
+## Vérification de jour en production (2026-10-22, ~15 h 40)
+
+176 trains, ~100 en route.
+
+- **LGV** : les trains suivent les tracés sur la LGV Sud-Est (Paris → Bourgogne → Lyon), l'Atlantique (Le Mans, Tours, Bordeaux) et l'Est. Un point hors tracé à l'est de Paris : INOUI 9866 Marseille → Bruxelles, marqué « Donnée périmée » (comportement attendu ; trajet probable par l'interconnexion Est / Marne-la-Vallée, gare sans tracé).
+- **Fenêtre au clic** : numéro, origine → terminus, retard, « Position estimée », mention de donnée périmée. Fermeture par × ; Échap ne la ferme pas (comportement par défaut de MapLibre).
+- **Filtres** : marque OUIGO → 25 trains ; axe EST → 16 trains, seuls les points de l'axe restent ; case « Voies » masque puis réaffiche les tracés.
+- **Fausse alerte « COLLECTE EN RETARD »** : le bandeau passe au rouge (11-12 min) alors que le cron `collect` réussit toutes les 2 min. Cause : deux caches empilés, Data Cache Next (300 s) puis CDN Vercel (`s-maxage=300, stale-while-revalidate=60`). Mesure à 13:39 UTC : réponse `HIT`, `age: 259`, `generated_at` 13:30:00, dernier train vu 13:28. Pire cas ~14 min, au-delà du seuil `FRESH_S = 600` s et du compromis de ~8 min accepté. Non corrigé.
