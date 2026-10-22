@@ -11,7 +11,8 @@ const COLLECT = {
 };
 
 // Barre d'état commune : l'horloge n'est rendue qu'après montage (pas d'écart d'hydratation).
-export default function StatusBar({ status, coveragePct }: { status: Status | null; coveragePct: number | null }) {
+// status et coveragePct absents : la barre ne les affiche pas (pages sans données temps réel).
+export default function StatusBar({ status, coveragePct }: { status?: Status | null; coveragePct?: number | null }) {
   const [clock, setClock] = useState<string | null>(null);
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris' }));
@@ -24,7 +25,7 @@ export default function StatusBar({ status, coveragePct }: { status: Status | nu
       <a href="/" className="term-logo">OBS·TGV</a>
       <span>LIVE {clock ?? '--:--:--'} PARIS</span>
       {status && COLLECT[status.status](status.ageMin)}
-      <span>COUV {coveragePct === null ? '—' : `${coveragePct.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} %`}</span>
+      {coveragePct !== undefined && <span>COUV {coveragePct === null ? '—' : `${coveragePct.toLocaleString('fr-FR', { minimumFractionDigits: 1 })} %`}</span>}
     </header>
   );
 }

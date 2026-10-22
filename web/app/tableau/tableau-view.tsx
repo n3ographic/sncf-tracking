@@ -70,10 +70,7 @@ export default function TableauView() {
 
   return (
     <>
-      <header className="tb-head">
-        <h1>Tableau de bord</h1>
-        <nav><a href="/">Carte</a> · <a href="/methodologie">Méthodologie</a></nav>
-      </header>
+      <h1 className="term-h1">Tableau de bord</h1>
 
       <CumulBanner />
 

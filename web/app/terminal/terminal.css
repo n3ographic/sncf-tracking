@@ -48,3 +48,4 @@ a { color: inherit; }
   .carte-map { height: 60vh; flex: none; }
   .term-col { overflow: visible; }
 }
+.term-h1 { display: inline-block; background: var(--t-amber); color: #000; padding: 0 8px; margin: 8px 0 12px; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }

@@ -1,14 +1,14 @@
-.mt { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; line-height: 1.55; }
-.mt a { color: inherit; }
-.mt-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; }
-.mt-head h1 { margin: 0 0 8px; font-size: 26px; }
-.mt h2 { margin: 32px 0 8px; font-size: 20px; border-top: 1px solid var(--line); padding-top: 16px; }
-.mt h3 { margin: 20px 0 6px; font-size: 16px; }
-.mt dt { font-weight: 600; margin-top: 8px; }
+.mt { max-width: 820px; margin: 0 auto; padding: 8px 16px 40px; line-height: 1.6; font-size: 13px; }
+.mt h2 { display: inline-block; background: var(--t-amber); color: #000; margin: 28px 0 8px; padding: 0 6px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.mt h3 { margin: 18px 0 6px; font-size: 13px; text-transform: uppercase; border-bottom: 1px dotted var(--t-line); padding-bottom: 2px; }
+.mt section { border-top: 1px solid var(--t-line); }
+.mt dt { margin-top: 8px; text-transform: uppercase; }
 .mt dd { margin: 2px 0 0 16px; color: var(--muted); }
-.mt code { font-size: 13px; }
-.mt-warn { padding: 8px 12px; background: var(--warn); border: 1px solid var(--line); border-radius: 8px; }
-.mt-scroll { overflow-x: auto; margin: 12px 0; }
-.mt table { border-collapse: collapse; font-size: 14px; width: 100%; }
-.mt caption { text-align: left; font-weight: 600; padding: 4px 0 8px; }
-.mt th, .mt td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.mt code { font-size: 12px; color: var(--t-ontime); }
+.mt strong { color: #ffd480; font-weight: 600; }
+.mt-warn { padding: 6px 10px; background: var(--warn); border: 1px solid var(--t-severe); color: var(--t-severe); }
+.mt-scroll { overflow-x: auto; margin: 10px 0; border: 1px solid var(--t-line); background: var(--t-panel); }
+.mt table { border-collapse: collapse; width: 100%; }
+.mt caption { text-align: left; padding: 6px 8px; color: var(--muted); text-transform: uppercase; font-size: 12px; }
+.mt th, .mt td { text-align: left; padding: 4px 8px; border-bottom: 1px dotted var(--t-line); vertical-align: top; }
+.mt thead th { color: var(--muted); font-weight: 400; text-transform: uppercase; font-size: 12px; }

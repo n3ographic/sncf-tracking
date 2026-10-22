@@ -1,5 +1,7 @@
 import { supabaseDeps } from '../../lib/supabase';
 import { loadRules, type Rules } from '../../lib/rules';
+import FootBar from '../terminal/foot-bar';
+import StatusBar from '../terminal/status-bar';
 
 export const metadata = { title: 'Méthodologie · Observatoire TGV' };
 // Rendue à chaque requête : un build sans accès à la base ne doit pas figer « règles indisponibles ».
@@ -42,11 +44,10 @@ export default async function Page() {
   const brands = rules ? [...new Set(rules.compensation_scale.map((s) => s.brand))] : [];
 
   return (
+    <>
+    <StatusBar />
     <main className="mt">
-      <header className="mt-head">
-        <h1>Méthodologie</h1>
-        <nav aria-label="Autres pages"><a href="/">Carte</a> · <a href="/tableau">Tableau de bord</a></nav>
-      </header>
+      <h1 className="term-h1">Méthodologie</h1>
 
       <section>
         <h2>Sources et licence</h2>
@@ -150,7 +151,7 @@ export default async function Page() {
 
       <section>
         <h2>Positions sur la carte</h2>
-        <p>Les positions sont <strong>estimées</strong>, pas mesurées : entre le dernier arrêt portant un retard et le suivant, le train avance à retard constant, de son départ corrigé à son arrivée corrigée,
+        <p>Les positions sont <strong>estimées</strong>, pas mesurées : chaque arrêt a son horaire prévu corrigé de son retard (publié, ou repris de l’arrêt précédent) ; le train reste à quai jusqu’à son départ corrigé puis avance jusqu’à l’arrivée corrigée de l’arrêt suivant,
           le long du tracé des voies lorsqu’il est connu et en ligne droite sinon. Un train dont le dernier passage du collecteur date de plus de 10 minutes est estompé (« donnée périmée »).</p>
       </section>
 
@@ -175,5 +176,7 @@ export default async function Page() {
         </ul>
       </section>
     </main>
+    <FootBar />
+    </>
   );
 }
