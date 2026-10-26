@@ -70,6 +70,7 @@ test('métriques INOUI SUD_EST', async () => {
   expect(metrics(rows, 'INOUI', 'SUD_EST')).toEqual({
     planned: 9, observed: 7, removed_late: 1, never_observed: 1, cancelled: 1, no_terminus: 1,
     circulated: 5, on_time_official: 2, comp_eligible: 1, comp_pct_sum: 50,
+    aberrant: 0, skipped_stop: 0, comp_pct_sum_low: 25, comp_pct_sum_high: 50, // G (7 200 s) : 50 % publié, 25 % si 6 901 s
     'terminus:1-4': 1, 'terminus:5-14': 2, 'terminus:15-29': 1, 'terminus:120-179': 1,
     'stop:0': 1, 'stop:1-4': 1, 'stop:5-14': 1, 'stop:cancelled': 2 })
 })
