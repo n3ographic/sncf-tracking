@@ -79,3 +79,45 @@ test('hypothèses : prix et barème convertis en nombres', () => {
   expect(p.assumptions.prices[0]).toMatchObject({ price_eur_ht: 46.6, seats: 556 });
   expect(p.assumptions.compensation_scale[0]).toMatchObject({ from_s: 3600, pct: 25 });
 });
+
+test('fourchette : le coût bas et le coût haut suivent leurs pourcentages, le central ne change pas', () => {
+  const p = shapeStats([
+    r('INOUI', 'SUD_EST', 'comp_pct_sum', 50), r('INOUI', 'SUD_EST', 'comp_pct_sum_low', 25), r('INOUI', 'SUD_EST', 'comp_pct_sum_high', 100),
+  ], prices, scale, params);
+  const full = 46.6 * 556; // un train indemnisé à 100 %, rame pleine
+  const g = p.groups[0];
+  expect(g.estimated_cost_eur_ht).toBeCloseTo(0.5 * full * DEFAULT_OCCUPANCY, 2);
+  expect(g.estimated_cost_eur_ht_low).toBeCloseTo(0.25 * full * DEFAULT_OCCUPANCY, 2);
+  expect(g.estimated_cost_eur_ht_high).toBeCloseTo(1.0 * full * DEFAULT_OCCUPANCY, 2);
+  expect(p.totals.estimated_cost_eur_ht_low).toBeCloseTo(g.estimated_cost_eur_ht_low!, 2);
+  expect(p.totals.estimated_cost_eur_ht_high).toBeCloseTo(g.estimated_cost_eur_ht_high!, 2);
+});
+
+test('fourchette : deux marques, chacune avec son prix, les totaux additionnent', () => {
+  const p = shapeStats([
+    r('INOUI', 'SUD_EST', 'comp_pct_sum_low', 100), r('INOUI', 'SUD_EST', 'comp_pct_sum_high', 100),
+    r('OUIGO', 'NORD', 'comp_pct_sum_low', 50), r('OUIGO', 'NORD', 'comp_pct_sum_high', 100),
+  ], prices, scale, params);
+  const inoui = 46.6 * 556 * 0.75, ouigo = 34.2 * 634 * 0.75;
+  expect(p.totals.estimated_cost_eur_ht_low).toBeCloseTo(inoui + 0.5 * ouigo, 2);
+  expect(p.totals.estimated_cost_eur_ht_high).toBeCloseTo(inoui + ouigo, 2);
+});
+
+test('fourchette absente des lignes (ancienne réponse) : bas et haut valent null, pas 0', () => {
+  const p = shapeStats([r('INOUI', 'SUD_EST', 'comp_pct_sum', 50), r('INOUI', 'SUD_EST', 'circulated', 5)], prices, scale, params);
+  expect(p.groups[0].estimated_cost_eur_ht_low).toBeNull();
+  expect(p.groups[0].estimated_cost_eur_ht_high).toBeNull();
+  expect(p.totals.estimated_cost_eur_ht_low).toBeNull();
+  expect(p.totals.estimated_cost_eur_ht_high).toBeNull();
+});
+
+test('retards aberrants et arrêts sautés : comptés dans les totaux', () => {
+  const p = shapeStats([r('INOUI', 'EST', 'aberrant', 1), r('INOUI', 'SUD_EST', 'aberrant', 2), r('INOUI', 'EST', 'skipped_stop', 4)], prices, scale, params);
+  expect(p.totals.aberrant).toBe(3);
+  expect(p.totals.skipped_stop).toBe(4);
+});
+
+test('les constantes de la règle sont publiées avec les hypothèses', () => {
+  const p = shapeStats([], prices, scale, params);
+  expect(p.assumptions.range).toEqual({ delay_tolerance_s: 299, aberrant_delay_s: 43200 });
+});

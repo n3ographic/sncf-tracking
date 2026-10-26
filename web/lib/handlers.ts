@@ -37,7 +37,7 @@ export function createStatsHandler(deps: Deps) {
     const p = parseStatsParams(new URL(req.url).searchParams, deps.now());
     if (!p.ok) return json({ error: p.error }, 400, 'no-store');
     // Clé = fenêtre canonique issue de parseStatsParams, jamais une chaîne brute de l'utilisateur.
-    return guarded(async () => json(await deps.cached(['stats', p.from, p.to], 900, async () => {
+    return guarded(async () => json(await deps.cached(['stats', 'v2', p.from, p.to], 900, async () => {
       const [rows, prices, scale] = await Promise.all([
         unwrap<StatRow[]>(deps.rpc('stats_period', { p_from: p.from, p_to: p.to }), 'stats_period'),
         unwrap<Price[]>(deps.select('reference_prices', 'brand,price_eur_ht,seats,price_source,seats_source,as_of'), 'reference_prices'),
@@ -74,7 +74,7 @@ export function createCumulHandler(deps: Deps) {
   return async (req: Request) => {
     // Aucun paramètre : une seule clé de cache, refus avant toute lecture de la base.
     if (new URL(req.url).search !== '') return json({ error: 'aucun paramètre accepté' }, 400, 'no-store');
-    return guarded(async () => json(await deps.cached(['cumul', 'v1'], 3600, async () => {
+    return guarded(async () => json(await deps.cached(['cumul', 'v2'], 3600, async () => {
       const [rows, prices] = await Promise.all([
         unwrap<CumulRow[]>(deps.rpc('cumul_totals', {}), 'cumul_totals'),
         unwrap<Price[]>(deps.select('reference_prices', 'brand,price_eur_ht,seats,price_source,seats_source,as_of'), 'reference_prices'),

@@ -8,8 +8,13 @@ export type Scale = { brand: string; from_s: number; pct: number; source_url: st
 // coût = cost_eur_ht_at_full_occupancy × occupation.
 export const DEFAULT_OCCUPANCY = 0.75;
 
+// Fourchette des indemnités : le retard publié va par pas de 5 min, le retard réel est à moins de 4 min 59 s près ;
+// un retard d'au moins 12 h est écarté des mesures. Mêmes valeurs que aberrant_delay_s() et delay_tolerance_s() en base.
+export const RANGE = { delay_tolerance_s: 299, aberrant_delay_s: 43200 };
+
 const COUNTS = ['planned', 'observed', 'removed_late', 'never_observed', 'cancelled', 'no_terminus',
-  'circulated', 'on_time_official', 'comp_eligible', 'comp_pct_sum'] as const;
+  'circulated', 'on_time_official', 'comp_eligible', 'comp_pct_sum', 'aberrant', 'skipped_stop',
+  'comp_pct_sum_low', 'comp_pct_sum_high'] as const;
 const BUCKETS = ['0', '1-4', '5-14', '15-29', '30-59', '60-119', '120-179', '180+'];
 const STOP_BUCKETS = [...BUCKETS, 'cancelled'];
 
@@ -20,17 +25,21 @@ export type Totals = Counts & {
   stop_buckets: Record<string, number>;
   estimated_cost_eur_ht: number;
   cost_eur_ht_at_full_occupancy: number;
+  // Fourchette ; null quand les lignes reçues n'ont pas les mesures basse et haute (ancienne réponse en cache).
+  estimated_cost_eur_ht_low: number | null;
+  estimated_cost_eur_ht_high: number | null;
 };
 export type Group = { brand: string; axis: string } & Totals;
 export type StatsPayload = {
   from: string; to: string; groups: Group[]; totals: Totals;
-  assumptions: { occupancy: number; prices: Price[]; compensation_scale: Scale[] };
+  assumptions: { occupancy: number; prices: Price[]; compensation_scale: Scale[]; range: typeof RANGE };
 };
 
 const zeros = (keys: readonly string[]) => Object.fromEntries(keys.map((k) => [k, 0]));
 const empty = (): Totals => ({
   ...(zeros(COUNTS) as Counts), official_regularity_pct: null,
   terminus_buckets: zeros(BUCKETS), stop_buckets: zeros(STOP_BUCKETS), estimated_cost_eur_ht: 0, cost_eur_ht_at_full_occupancy: 0,
+  estimated_cost_eur_ht_low: null, estimated_cost_eur_ht_high: null,
 });
 const regularity = (t: Totals) => (t.circulated === 0 ? null : round((t.on_time_official / t.circulated) * 100, 1));
 
@@ -56,8 +65,9 @@ export function shapeStats(rows: StatRow[], rawPrices: Price[], rawScale: Scale[
     } // métrique inconnue : ignorée
   }
 
+  const hasRange = rows.some((x) => x.metric === 'comp_pct_sum_high');
   const totals = empty();
-  let cost = 0;
+  let cost = 0, low = 0, high = 0;
   const list = [...groups.values()].sort((a, b) => a.brand.localeCompare(b.brand) || a.axis.localeCompare(b.axis));
   for (const g of list) {
     const price = prices.find((x) => x.brand === g.brand);
@@ -66,6 +76,13 @@ export function shapeStats(rows: StatRow[], rawPrices: Price[], rawScale: Scale[
     cost += full;
     g.cost_eur_ht_at_full_occupancy = round(full, 2);
     g.estimated_cost_eur_ht = round(full * DEFAULT_OCCUPANCY, 2);
+    const perPct = (price.price_eur_ht * price.seats * DEFAULT_OCCUPANCY) / 100;
+    if (hasRange) {
+      g.estimated_cost_eur_ht_low = round(g.comp_pct_sum_low * perPct, 2);
+      g.estimated_cost_eur_ht_high = round(g.comp_pct_sum_high * perPct, 2);
+      low += g.comp_pct_sum_low * perPct;
+      high += g.comp_pct_sum_high * perPct;
+    }
     g.official_regularity_pct = regularity(g);
     for (const k of COUNTS) totals[k] += g[k];
     for (const k of BUCKETS) totals.terminus_buckets[k] += g.terminus_buckets[k];
@@ -73,12 +90,16 @@ export function shapeStats(rows: StatRow[], rawPrices: Price[], rawScale: Scale[
   }
   totals.cost_eur_ht_at_full_occupancy = round(cost, 2);
   totals.estimated_cost_eur_ht = round(cost * DEFAULT_OCCUPANCY, 2);
+  if (hasRange) {
+    totals.estimated_cost_eur_ht_low = round(low, 2);
+    totals.estimated_cost_eur_ht_high = round(high, 2);
+  }
   totals.official_regularity_pct = regularity(totals);
 
   return {
     from: p.from, to: p.to, groups: list, totals,
     assumptions: {
-      occupancy: DEFAULT_OCCUPANCY, prices, compensation_scale: scale,
+      occupancy: DEFAULT_OCCUPANCY, prices, compensation_scale: scale, range: RANGE,
     },
   };
 }
