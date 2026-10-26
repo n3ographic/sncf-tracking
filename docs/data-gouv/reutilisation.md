@@ -34,7 +34,7 @@ Les champs ci-dessous viennent du schéma de l'API data.gouv.fr (obligatoires : 
 **Ce qu'il faut savoir avant d'utiliser les chiffres**
 - Les positions des trains sont estimées entre deux arrêts, pas mesurées.
 - La régularité est une approximation de la régularité officielle : le flux publie les retards par pas de 5 minutes. Elle n'est pas comparable telle quelle aux chiffres officiels.
-- Les indemnités sont théoriques : prix moyen par marque, taux d'occupation de 0,75 (hypothèse non sourcée), trains observés seulement. Elles ne mesurent pas ce que SNCF verse.
+- Les indemnités sont théoriques : prix moyen par marque, taux d'occupation de 0,75 (moyenne tous TGV de l'ART en 2023 : 76-77 %, sans détail par marque), trains observés seulement. Elles ne mesurent pas ce que SNCF verse.
 - La collecte a commencé le 20 octobre 2026 ; la couverture est affichée sur le site.
 - Périmètre : TGV INOUI et OUIGO (OUIGO Train Classique exclus).
 
