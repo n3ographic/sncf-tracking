@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Map as MlMap, Popup } from 'maplibre-gl';
 import {
   applyFilters, axes, isStale, lateCount, toFeatureCollection, trainPosition,
@@ -33,9 +33,9 @@ function popupContent(t: LiveItem): HTMLElement {
 
 export type Focus = { trip_id: string; at: number } | null;
 
-export default function CarteView({ trains, failed, lastOk, focus, selected, onSelect, onSpeed }: {
+export default function CarteView({ trains, failed, lastOk, focus, selected, onSelect, onSpeed, overlay }: {
   trains: LiveItem[]; failed: boolean; lastOk: number | null; focus: Focus;
-  selected: string | null; onSelect: (trip_id: string | null) => void; onSpeed: (kmh: number | null) => void;
+  selected: string | null; onSelect: (trip_id: string | null) => void; onSpeed: (kmh: number | null) => void; overlay: ReactNode;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -231,6 +231,7 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
         </div>
       </details>
       <div ref={container} className="carte-map" />
+      {overlay}
       {failed && (
         <p className="carte-banner" role="status">
           {staleMin === null ? 'DONNÉES INDISPONIBLES' : `DONNÉES NON ACTUALISÉES DEPUIS ${staleMin} MIN`}

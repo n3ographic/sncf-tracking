@@ -101,14 +101,11 @@ export default function TerminalView() {
         <h1 className="sr-only">Observatoire TGV : trains en circulation, retards et indemnités théoriques</h1>
         <LeftPanel trains={trains} liveFailed={liveFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} onFocus={onFocus} />
         <div className="term-center">
-          <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} selected={selected} onSelect={select} onSpeed={setSpeed} />
+          <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} selected={selected} onSelect={select} onSpeed={setSpeed}
+            overlay={selected ? <TrainPanel train={trains.find((t) => t.trip_id === selected) ?? null} rules={rules} speed={speed} onClose={() => select(null)} /> : null} />
           <GroupsPanel stats={stats} failed={statsFailed} loading={statsLoading} period={period} onRetry={reloadStats} />
         </div>
-        {selected ? (
-          <TrainPanel train={trains.find((t) => t.trip_id === selected) ?? null} rules={rules} speed={speed} onClose={() => select(null)} />
-        ) : (
-          <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
-        )}
+        <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
       </main>
       <FootBar />
     </div>
