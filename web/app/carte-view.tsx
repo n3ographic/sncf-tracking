@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Map as MlMap } from 'maplibre-gl';
+import type { Map as MlMap, Popup } from 'maplibre-gl';
 import {
-  applyFilters, axes, isStale, lateCount, toFeatureCollection,
+  applyFilters, axes, isStale, lateCount, toFeatureCollection, trainPosition,
   type Filters, type LiveItem,
 } from '../lib/map-model';
 import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from '../lib/traces';
@@ -60,10 +60,17 @@ export default function CarteView({ trains, failed, lastOk, focus }: {
   trainsRef.current = trains;
   filtersRef.current = filters;
 
+  // Fenêtre ouverte : elle suit son train (déplacée à chaque recalcul) et se met à jour avec les données.
+  const followRef = useRef<{ train: LiveItem; stale: boolean; popup: Popup } | null>(null);
   const openPopup = (t: LiveItem, at: [number, number]) => {
     const ml = mlRef.current, m = mapRef.current;
     if (!ml || !m) return;
-    new ml.Popup({ maxWidth: '320px' }).setLngLat(at).setDOMContent(popupContent(t, new Date())).addTo(m);
+    followRef.current?.popup.remove();
+    const now = new Date();
+    const popup = new ml.Popup({ maxWidth: '320px' }).setLngLat(at).setDOMContent(popupContent(t, now)).addTo(m);
+    const follow = { train: t, stale: isStale(t, now), popup };
+    followRef.current = follow;
+    popup.on('close', () => { if (followRef.current === follow) followRef.current = null; });
   };
 
   // Carte : montée côté navigateur uniquement.
@@ -85,6 +92,18 @@ export default function CarteView({ trains, failed, lastOk, focus }: {
           (f.properties as typeof f.properties & { tone: Tone }).tone = t ? delayTone(t.delay_s, t.cancelled) : 'ontime';
         }
         src.setData(fc);
+      }
+      const f = followRef.current;
+      if (f) {
+        const at = new Date();
+        const pos = trainPosition(trainsRef.current, f.train.trip_id, at, pathRef.current);
+        if (pos) f.popup.setLngLat(pos);
+        const cur = trainsRef.current.find((x) => x.trip_id === f.train.trip_id);
+        if (cur && (cur !== f.train || isStale(cur, at) !== f.stale)) {
+          f.train = cur;
+          f.stale = isStale(cur, at);
+          f.popup.setDOMContent(popupContent(cur, at));
+        }
       }
       setNow(Date.now());
     };
