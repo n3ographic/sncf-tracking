@@ -4,7 +4,7 @@ export type StatRow = { brand: string; axis: string; metric: string; n: number }
 export type Price = { brand: string; price_eur_ht: number; seats: number; price_source: string; seats_source: string; as_of: string };
 export type Scale = { brand: string; from_s: number; pct: number; source_url: string; source_as_of: string };
 
-// Occupation de référence (hypothèse non sourcée). Le coût est linéaire :
+// Occupation de référence (ART 2023 : 76-77 % tous TGV, pas par marque). Le coût est linéaire :
 // coût = cost_eur_ht_at_full_occupancy × occupation.
 export const DEFAULT_OCCUPANCY = 0.75;
 
