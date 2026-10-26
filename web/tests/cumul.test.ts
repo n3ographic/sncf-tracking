@@ -42,3 +42,26 @@ test('shapeCumul : marque sans prix, valeur non numérique : erreur', () => {
   expect(() => shapeCumul([row('TER', 'planned', 1)], prices)).toThrow(/TER/);
   expect(() => shapeCumul([row('INOUI', 'planned', 'abc')], prices)).toThrow(/planned/);
 });
+
+const withRange: CumulRow[] = [
+  ...rows,
+  row('INOUI', 'comp_pct_sum_low', 100), row('INOUI', 'comp_pct_sum_high', 150), row('INOUI', 'aberrant', 2),
+  row('OUIGO', 'comp_pct_sum_low', 50), row('OUIGO', 'comp_pct_sum_high', 100), row('OUIGO', 'aberrant', 1),
+];
+
+test('shapeCumul : fourchette par marque et au total, retards aberrants comptés', () => {
+  const c = shapeCumul(withRange, prices);
+  // INOUI : 46,6 × 556 = 25 909,6 par tranche de 100 % ; OUIGO : 34,2 × 634 = 21 682,8 ; × 0,75
+  expect(c.cost_eur_ht_low).toBe(27563.25); // (100 % INOUI + 50 % OUIGO) × 0,75
+  expect(c.cost_eur_ht_high).toBe(45410.4); // (150 % INOUI + 100 % OUIGO) × 0,75
+  expect(c.cost_eur_ht).toBe(40552.35); // le central ne bouge pas
+  expect(c.by_brand[0]).toMatchObject({ brand: 'INOUI', cost_eur_ht_low: 19432.2, cost_eur_ht_high: 29148.3, aberrant: 2 });
+  expect(c.aberrant).toBe(3);
+});
+
+test('shapeCumul : sans mesures basse et haute (jours non recalculés), la fourchette vaut null et non 0', () => {
+  const c = shapeCumul(rows, prices);
+  expect(c.cost_eur_ht_low).toBeNull();
+  expect(c.cost_eur_ht_high).toBeNull();
+  expect(c.by_brand[0].cost_eur_ht_low).toBeNull();
+});

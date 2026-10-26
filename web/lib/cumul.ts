@@ -4,27 +4,32 @@ import { DEFAULT_OCCUPANCY, type Price } from './stats';
 export type CumulRow = { brand: string; metric: string; n: number | string; days: number; first_day: string; last_day: string };
 export type CumulBrand = {
   brand: string; planned: number; observed: number; circulated: number; comp_eligible: number; comp_pct_sum: number;
+  aberrant: number; comp_pct_sum_low: number; comp_pct_sum_high: number;
   cost_eur_ht: number; cost_eur_ht_at_full_occupancy: number;
+  // Fourchette ; null quand des jours enregistrés n'ont pas encore les mesures basse et haute.
+  cost_eur_ht_low: number | null; cost_eur_ht_high: number | null;
 };
 export type Cumul = {
   since: string | null; through: string | null; days: number;
-  planned: number; observed: number; coverage_pct: number | null; circulated: number; comp_eligible: number;
+  planned: number; observed: number; coverage_pct: number | null; circulated: number; comp_eligible: number; aberrant: number;
   cost_eur_ht: number; cost_eur_ht_at_full_occupancy: number;
+  cost_eur_ht_low: number | null; cost_eur_ht_high: number | null;
   by_brand: CumulBrand[];
   assumptions: { occupancy: number; prices: Price[] };
 };
 
-const COUNTS = ['planned', 'observed', 'circulated', 'comp_eligible', 'comp_pct_sum'] as const;
+const COUNTS = ['planned', 'observed', 'circulated', 'comp_eligible', 'comp_pct_sum', 'aberrant', 'comp_pct_sum_low', 'comp_pct_sum_high'] as const;
 
 // Compteur observé seulement : jamais extrapolé aux trains non observés. Le coût se calcule à la lecture
 // (prix, places et occupation sont des hypothèses) : pourcentage cumulé × prix HT × places × occupation.
 export function shapeCumul(rows: CumulRow[], prices: Price[], occupancy = DEFAULT_OCCUPANCY): Cumul {
   const refs = prices.map((p) => ({ ...p, price_eur_ht: toNum(p.price_eur_ht, 'price_eur_ht'), seats: toNum(p.seats, 'seats') }))
     .sort((a, b) => a.brand.localeCompare(b.brand));
+  const hasRange = rows.some((r) => r.metric === 'comp_pct_sum_high');
   const byBrand = new Map<string, Record<(typeof COUNTS)[number], number>>();
   for (const r of rows) {
     if (!(COUNTS as readonly string[]).includes(r.metric)) continue; // tranches de retard : sans objet ici
-    const c = byBrand.get(r.brand) ?? { planned: 0, observed: 0, circulated: 0, comp_eligible: 0, comp_pct_sum: 0 };
+    const c = byBrand.get(r.brand) ?? { planned: 0, observed: 0, circulated: 0, comp_eligible: 0, comp_pct_sum: 0, aberrant: 0, comp_pct_sum_low: 0, comp_pct_sum_high: 0 };
     c[r.metric as (typeof COUNTS)[number]] += toNum(r.n, r.metric);
     byBrand.set(r.brand, c);
   }
@@ -32,10 +37,12 @@ export function shapeCumul(rows: CumulRow[], prices: Price[], occupancy = DEFAUL
     const price = refs.find((p) => p.brand === brand);
     if (!price) throw new Error(`prix de référence absent pour ${brand}`);
     const full = (c.comp_pct_sum / 100) * price.price_eur_ht * price.seats;
-    return { brand, ...c, full, cost: full * occupancy };
+    const perPct = (price.price_eur_ht * price.seats * occupancy) / 100;
+    return { brand, ...c, full, cost: full * occupancy, low: hasRange ? c.comp_pct_sum_low * perPct : null, high: hasRange ? c.comp_pct_sum_high * perPct : null };
   });
   const sum = (f: (b: (typeof brands)[number]) => number) => brands.reduce((s, b) => s + f(b), 0);
   const planned = sum((b) => b.planned), observed = sum((b) => b.observed);
+  const sumOrNull = (f: (b: (typeof brands)[number]) => number | null) => (hasRange ? round(sum((b) => f(b) ?? 0), 2) : null);
   return {
     since: rows[0]?.first_day ?? null,
     through: rows[0]?.last_day ?? null,
@@ -44,9 +51,15 @@ export function shapeCumul(rows: CumulRow[], prices: Price[], occupancy = DEFAUL
     coverage_pct: planned === 0 ? null : round((observed / planned) * 100, 1),
     circulated: sum((b) => b.circulated),
     comp_eligible: sum((b) => b.comp_eligible),
+    aberrant: sum((b) => b.aberrant),
+    cost_eur_ht_low: sumOrNull((b) => b.low),
+    cost_eur_ht_high: sumOrNull((b) => b.high),
     cost_eur_ht: round(sum((b) => b.cost), 2),
     cost_eur_ht_at_full_occupancy: round(sum((b) => b.full), 2),
-    by_brand: brands.map(({ full, cost, ...b }) => ({ ...b, cost_eur_ht: round(cost, 2), cost_eur_ht_at_full_occupancy: round(full, 2) })),
+    by_brand: brands.map(({ full, cost, low, high, ...b }) => ({
+      ...b, cost_eur_ht: round(cost, 2), cost_eur_ht_at_full_occupancy: round(full, 2),
+      cost_eur_ht_low: low === null ? null : round(low, 2), cost_eur_ht_high: high === null ? null : round(high, 2),
+    })),
     assumptions: { occupancy, prices: refs },
   };
 }
