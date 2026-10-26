@@ -7,7 +7,8 @@ import {
   type Filters, type LiveItem,
 } from '../lib/map-model';
 import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from '../lib/traces';
-import { estimatePosition, type Lngl } from '../lib/position';
+import { estimatePosition, segmentSpeedKmh, type Lngl } from '../lib/position';
+import { compensationView, delayBounds, observedAgo, type Rules } from '../lib/train-card';
 import { delayTone, type Tone } from '../lib/terminal-model';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
@@ -15,8 +16,11 @@ const TONE_COLORS: Record<Tone, string> = { ontime: '#3ad13a', late: '#ffd24d', 
 const TONE_LABELS: Record<Tone, string> = { ontime: 'À L’HEURE', late: 'RETARD', strong: 'FORT RETARD', severe: 'TRÈS FORT RETARD', cancelled: 'ANNULÉ' };
 type MapLibre = typeof import('maplibre-gl');
 
+const eur = (n: number) => n.toFixed(2).replace('.', ',');
+const range = (lo: number, hi: number, fmt: (n: number) => string) => (lo === hi ? fmt(hi) : `${fmt(lo)} À ${fmt(hi)}`);
+
 // Fenêtre au clic : nœuds DOM uniquement (textContent), jamais de HTML venant des données.
-function popupContent(t: LiveItem, now: Date): HTMLElement {
+function popupContent(t: LiveItem, now: Date, rules: Rules | null, path?: (a: Lngl, b: Lngl) => Lngl[]): HTMLElement {
   const root = document.createElement('div');
   root.className = 'popup';
   const line = (text: string, cls?: string) => {
@@ -26,20 +30,34 @@ function popupContent(t: LiveItem, now: Date): HTMLElement {
     root.appendChild(p);
   };
   const tone = delayTone(t.delay_s, t.cancelled);
+  const delay = Math.max(t.delay_s ?? 0, 0);
   line(`${t.brand} ${t.train_number}`, 'popup-title');
   if (t.origin && t.dest) line(`${t.origin} → ${t.dest}`);
-  line(tone === 'cancelled' ? 'ANNULÉ' : `RETARD ${Math.round(Math.max(t.delay_s ?? 0, 0) / 60)}′ · ${TONE_LABELS[tone]}`, `tone-${tone}`);
+  line(tone === 'cancelled' ? 'ANNULÉ' : `RETARD PUBLIÉ ${Math.round(delay / 60)}′ · ${TONE_LABELS[tone]}`, `tone-${tone}`);
+  if (!t.cancelled) {
+    const b = delayBounds(delay);
+    line(`RÉEL ENTRE ${Math.round(b.low_s / 60)}′ ET ${Math.round(b.high_s / 60)}′ (RETARDS PUBLIÉS PAR PAS DE 5′)`, 'popup-note');
+    const v = segmentSpeedKmh(t, now, path);
+    if (v !== null) line(`VITESSE ≈ ${Math.round(v)} KM/H (MOYENNE DU TRONÇON)`);
+  }
   if (t.cause) line(t.cause, 'popup-cause');
-  if (t.comp_eur_per_passenger_ref > 0) line(`INDEMNITÉ THÉORIQUE ${t.comp_eur_per_passenger_ref.toFixed(2)} € / VOYAGEUR HT`);
-  line('Position estimée.', 'popup-note');
+  const cv = !t.cancelled && rules ? compensationView(t.brand, t.delay_s, rules) : null;
+  if (cv) {
+    if (cv.pct_high > 0) line(`INDEMNITÉ THÉORIQUE ${range(cv.pct_low, cv.pct_high, (n) => `${n} %`)} · ${range(cv.eur_low, cv.eur_high, eur)} € / VOYAGEUR HT`);
+    if (cv.next) line(`PROCHAIN SEUIL : ${cv.next.pct} % À +${Math.round(cv.next.from_s / 60)}′ (DANS ${Math.ceil(cv.next.in_s / 60)}′)`, 'popup-note');
+  } else if (!t.cancelled && t.comp_eur_per_passenger_ref > 0) {
+    line(`INDEMNITÉ THÉORIQUE ${t.comp_eur_per_passenger_ref.toFixed(2)} € / VOYAGEUR HT`);
+  }
+  const ago = observedAgo(t.last_seen_at, now);
+  line(ago === null ? 'Position estimée.' : `Position estimée · observé ${ago === 0 ? 'à l’instant' : `il y a ${ago} min`}.`, 'popup-note');
   if (isStale(t, now)) line('Donnée périmée : le train n’a pas été vu récemment.', 'popup-note');
   return root;
 }
 
 export type Focus = { trip_id: string; at: number } | null;
 
-export default function CarteView({ trains, failed, lastOk, focus }: {
-  trains: LiveItem[]; failed: boolean; lastOk: number | null; focus: Focus;
+export default function CarteView({ trains, failed, lastOk, focus, rules }: {
+  trains: LiveItem[]; failed: boolean; lastOk: number | null; focus: Focus; rules: Rules | null;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -57,18 +75,21 @@ export default function CarteView({ trains, failed, lastOk, focus }: {
   const [ctrlOpen, setCtrlOpen] = useState(true);
   useEffect(() => { if (window.matchMedia('(max-width: 899px)').matches) setCtrlOpen(false); }, []);
   const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
+  const rulesRef = useRef<Rules | null>(rules);
   trainsRef.current = trains;
+  rulesRef.current = rules;
   filtersRef.current = filters;
 
   // Fenêtre ouverte : elle suit son train (déplacée à chaque recalcul) et se met à jour avec les données.
-  const followRef = useRef<{ train: LiveItem; stale: boolean; popup: Popup } | null>(null);
+  const followRef = useRef<{ train: LiveItem; text: string; popup: Popup } | null>(null);
   const openPopup = (t: LiveItem, at: [number, number]) => {
     const ml = mlRef.current, m = mapRef.current;
     if (!ml || !m) return;
     followRef.current?.popup.remove();
     const now = new Date();
-    const popup = new ml.Popup({ maxWidth: '320px' }).setLngLat(at).setDOMContent(popupContent(t, now)).addTo(m);
-    const follow = { train: t, stale: isStale(t, now), popup };
+    const content = popupContent(t, now, rulesRef.current, pathRef.current);
+    const popup = new ml.Popup({ maxWidth: '320px' }).setLngLat(at).setDOMContent(content).addTo(m);
+    const follow = { train: t, text: content.textContent ?? '', popup };
     followRef.current = follow;
     popup.on('close', () => { if (followRef.current === follow) followRef.current = null; });
   };
@@ -99,10 +120,12 @@ export default function CarteView({ trains, failed, lastOk, focus }: {
         const pos = trainPosition(trainsRef.current, f.train.trip_id, at, pathRef.current);
         if (pos) f.popup.setLngLat(pos);
         const cur = trainsRef.current.find((x) => x.trip_id === f.train.trip_id);
-        if (cur && (cur !== f.train || isStale(cur, at) !== f.stale)) {
+        if (cur) {
+          // Le contenu dépend de l'heure (vitesse, ancienneté de l'observation) : on le refait et on remplace s'il a changé.
+          const content = popupContent(cur, at, rulesRef.current, pathRef.current);
+          if (content.textContent !== f.text) f.popup.setDOMContent(content);
           f.train = cur;
-          f.stale = isStale(cur, at);
-          f.popup.setDOMContent(popupContent(cur, at));
+          f.text = content.textContent ?? '';
         }
       }
       setNow(Date.now());

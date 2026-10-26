@@ -84,6 +84,7 @@ export default function TerminalView() {
   useEffect(() => { loadStats(period); }, [period, loadStats]);
   const reloadStats = useCallback(() => loadStats(period), [period, loadStats]);
 
+  const rules = useMemo(() => (stats ? { compensation_scale: stats.assumptions.compensation_scale, prices: stats.assumptions.prices } : null), [stats]);
   const onFocus = useCallback((trip_id: string) => setFocus({ trip_id, at: Date.now() }), []);
   const items = useMemo(() => tickerItems(trains, 15), [trains]);
   const status = liveFailed && trains.length === 0 ? { status: 'unknown' as const, ageMin: null } : collectStatus(trains, new Date());
@@ -96,7 +97,7 @@ export default function TerminalView() {
         <h1 className="sr-only">Observatoire TGV : trains en circulation, retards et indemnités théoriques</h1>
         <LeftPanel trains={trains} liveFailed={liveFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} onFocus={onFocus} />
         <div className="term-center">
-          <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} />
+          <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} rules={rules} />
           <GroupsPanel stats={stats} failed={statsFailed} loading={statsLoading} period={period} onRetry={reloadStats} />
         </div>
         <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
