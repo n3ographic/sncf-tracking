@@ -81,3 +81,9 @@ a { color: inherit; }
 .live-buckets li > :last-child { text-align: right; }
 .arrivals button { gap: 6px; }
 .arrivals .arr-dest { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-amber-dim); }
+.brand-split { margin: 0 0 4px; }
+.brand-split > div { display: grid; grid-template-columns: 52px 1fr; gap: 6px; }
+.brand-split dt, .brand-split dd { margin: 0; }
+.brand-inoui { color: var(--t-amber); }
+.brand-ouigo { color: var(--t-amber-dim); }
+.brand-bar { white-space: pre; letter-spacing: -1px; }
