@@ -1,0 +1,56 @@
+import { afterEach, beforeAll, expect, test } from 'vitest'
+import type { PGlite } from '@electric-sql/pglite'
+import { makeDb, resetData, seedTrip, type SeedTrip } from './sql/harness.ts'
+
+const NOW = '2026-11-02T12:00:00Z'
+let db: PGlite
+beforeAll(async () => { db = await makeDb(); await resetData(db) })
+afterEach(async () => { await resetData(db) })
+
+const category = async (cause: string | null) =>
+  (await db.query<{ c: string }>('select public.cause_category($1) as c', [cause])).rows[0].c
+
+test.each([
+  [null, 'sans_cause'],
+  ['Cause : le conducteur a dû ralentir pour garantir la distance de sécurité entre les trains à MÂCON.', 'regulation'],
+  ["Cause : le matériel utilisé pour assurer votre train a été retardé sur son précédent trajet à LILLE FLANDRES en raison du heurt d'un animal", 'enchainement'],
+  ["Cause : votre train a fait l'objet d'une intervention de maintenance à NÎMES CENTRE. Pour mieux comprendre la gestion de cet incident.", 'materiel'],
+  ["Les conditions climatiques actuelles nécessitent l'application de mesures de sécurité sur votre itinéraire. Des ralentissements sont imposés.", 'meteo'],
+  ["Cause : défaut d'alimentation électrique entre LABOUHEYRE et MORCENX. Les équipes du gestionnaire du réseau ferré sont en cours d'intervention. Pour les voyageurs concernés par la suppression, vérifiez vos mails.", 'infrastructure'],
+  ['Votre retard est dû à deux incidents distincts : Les conditions climatiques actuelles nécessitent des mesures.', 'plusieurs'],
+  ['Cause : un obstacle a été signalé sur les voies à GRAFFENSTADEN.', 'obstacle'],
+  ['Cause : opération de sûreté à PERPIGNAN.', 'voyageurs_surete'],
+  ['Cause : feuilles sur les voies entre VALENCIENNES et DOUAI.', 'meteo'],
+  ["Cause : votre train fait l'objet de vérifications techniques à MODANE.", 'materiel'],
+  ['Des travaux de renouvellement des appareils de voie sont en cours sur la ligne à grande vitesse à Roeux', 'infrastructure'],
+  ["Cause : emprunt d'un autre itinéraire avec modification de la desserte du train à HYÈRES.", 'information'],
+  ["Retard affectant votre train. En raison d'un incident d’exploitation survenu au cours du trajet, votre train circule actuellement avec un retard.", 'exploitation'],
+  ['Cause : orage violent à RENNES.', 'meteo'],
+  ['Gare de Tourcoing : texte sans rapport connu', 'autre'],
+])('cause_category(%s) = %s', async (cause, expected) => {
+  expect(await category(cause)).toBe(expected)
+})
+
+const ARR = '2026-11-01T20:00:00Z'
+const ORAGE = 'Cause : orage violent à RENNES.'
+const trip = (tripId: string, circulation: SeedTrip['circulation']): SeedTrip => ({
+  serviceDate: '2026-11-01', tripId, brand: 'INOUI', axis: 'SUD_EST', trainNumber: tripId,
+  dep: '2026-11-01T17:00:00Z', arr: ARR, circulation,
+})
+
+test('stats_period : mesures par cause, trains ≥ 300 s seulement', async () => {
+  for (const t of [
+    trip('A', { terminusDelayS: 600, cause: ORAGE }),
+    trip('B', { terminusDelayS: 1860, cause: ORAGE }),
+    trip('C', { terminusDelayS: 7200 }),
+    trip('D', { terminusDelayS: 299, cause: ORAGE }),
+    trip('E', { cancelled: true, terminusDelayS: null, cause: ORAGE }),
+    trip('F', { terminusDelayS: 43200, cause: ORAGE }),
+  ]) await seedTrip(db, t)
+  const r = await db.query<{ metric: string; n: string }>(
+    "select metric, sum(n)::text as n from public.stats_period($1, $1, $2) where metric like 'cause%' group by metric", ['2026-11-01', NOW])
+  expect(Object.fromEntries(r.rows.map((x) => [x.metric, Number(x.n)]))).toEqual({
+    'cause:meteo': 2, 'cause_delay_s:meteo': 2460, 'cause_comp:meteo': 25,
+    'cause:sans_cause': 1, 'cause_delay_s:sans_cause': 7200, 'cause_comp:sans_cause': 50,
+  })
+})

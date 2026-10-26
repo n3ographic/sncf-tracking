@@ -72,7 +72,8 @@ test('métriques INOUI SUD_EST', async () => {
     circulated: 5, on_time_official: 2, comp_eligible: 1, comp_pct_sum: 50,
     aberrant: 0, skipped_stop: 0, comp_pct_sum_low: 25, comp_pct_sum_high: 50, // G (7 200 s) : 50 % publié, 25 % si 6 901 s
     'terminus:1-4': 1, 'terminus:5-14': 2, 'terminus:15-29': 1, 'terminus:120-179': 1,
-    'stop:0': 1, 'stop:1-4': 1, 'stop:5-14': 1, 'stop:cancelled': 2 })
+    'stop:0': 1, 'stop:1-4': 1, 'stop:5-14': 1, 'stop:cancelled': 2,
+    'cause:sans_cause': 4, 'cause_delay_s:sans_cause': 8940, 'cause_comp:sans_cause': 50 }) // B, C, D, G : 300 + 540 + 900 + 7 200 s
 })
 
 test('métriques OUIGO ATLANTIQUE : barème propre à la marque', async () => {
