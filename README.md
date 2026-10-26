@@ -13,6 +13,8 @@ Périmètre : TGV INOUI et TGV OUIGO. Les OUIGO Train Classique (numéros 4000 �
 
 Ces données sont sous licence [ODbL 1.0](data/LICENSE-ODbL.txt). Contient des informations de SNCF Open Data et de transport.data.gouv.fr, sous licence ODbL.
 
+**Licences.** Le code source de ce dépôt est sous licence [MIT](LICENSE). Les données restent sous ODbL : les données publiées (journal d'événements mensuel, statistiques) et les bases dérivées, comme `web/public/trace-paires.json`, ne sont pas couvertes par la licence MIT.
+
 ## Données publiées
 
 Chaque mois, le journal des événements du mois précédent (heure de Paris) est publié en CSV gzip dans les [Releases](../../releases) du dépôt, sous le tag `events-AAAA-MM`, sous licence ODbL. Une ligne est un changement observé sur un trajet :

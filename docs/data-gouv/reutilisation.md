@@ -40,11 +40,11 @@ Les champs ci-dessous viennent du schéma de l'API data.gouv.fr (obligatoires : 
 
 La page « Méthodologie » détaille les règles de calcul, les sources et les limites : https://sncf-tracking.vercel.app/methodologie
 
-Projet indépendant, non affilié à SNCF ni à OUIGO. Code source : https://github.com/n3ographic/sncf-tracking. Les données dérivées sont sous licence ODbL ; le site contient des informations de SNCF Open Data et de transport.data.gouv.fr, sous licence ODbL.
+Projet indépendant, non affilié à SNCF ni à OUIGO. Code source sous licence MIT : https://github.com/n3ographic/sncf-tracking. Les données dérivées sont sous licence ODbL ; le site contient des informations de SNCF Open Data et de transport.data.gouv.fr, sous licence ODbL.
 ```
 
 ## À décider avant de publier
 
-- **Licence du code** : le dépôt n'a pas de fichier LICENSE (seules les données ont `data/LICENSE-ODbL.txt`). J'ai écrit « code source » et non « open source », parce que sans licence, le code est juridiquement réservé. Si tu veux dire « open source », il faut ajouter une licence au dépôt d'abord.
+- **Licence du code** : réglée, le code est sous MIT (`LICENSE` à la racine, commit du 2026-10-26) et les données restent sous ODbL. Le texte de la fiche l'indique. Le fichier doit être poussé sur GitHub avant que la fiche ne le mentionne publiquement.
 - **Image** : sans image, la fiche s'affiche avec un visuel par défaut ; une capture de l'écran d'accueil rend la fiche plus lisible.
 - **Après l'export du 1er novembre** : on prépare le jeu de données (journal d'événements mensuel et statistiques journalières). La fiche pourra alors lui être liée.
