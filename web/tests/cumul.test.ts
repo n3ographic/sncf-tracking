@@ -65,3 +65,8 @@ test('shapeCumul : sans mesures basse et haute (jours non recalculés), la fourc
   expect(c.cost_eur_ht_high).toBeNull();
   expect(c.by_brand[0].cost_eur_ht_low).toBeNull();
 });
+
+test('shapeCumul : mesures de cause présentes, totaux inchangés', () => {
+  const extra = [row('INOUI', 'cause:meteo', 7), row('INOUI', 'cause_comp:meteo', 75), row('OUIGO', 'cause_delay_s:meteo', 3600)];
+  expect(shapeCumul([...rows, ...extra], prices)).toEqual(shapeCumul(rows, prices));
+});

@@ -30,8 +30,10 @@ export type Totals = Counts & {
   estimated_cost_eur_ht_high: number | null;
 };
 export type Group = { brand: string; axis: string } & Totals;
+// Retards d'au moins 5 min par catégorie de cause déclarée (codes de cause_rules, voir lib/causes.ts).
+export type CauseRow = { category: string; trains: number; avg_delay_min: number; cost_eur_ht: number };
 export type StatsPayload = {
-  from: string; to: string; groups: Group[]; totals: Totals;
+  from: string; to: string; groups: Group[]; totals: Totals; cause_breakdown: CauseRow[];
   assumptions: { occupancy: number; prices: Price[]; compensation_scale: Scale[]; range: typeof RANGE };
 };
 
@@ -51,13 +53,25 @@ export function shapeStats(rows: StatRow[], rawPrices: Price[], rawScale: Scale[
     .map((x) => ({ ...x, from_s: toNum(x.from_s, 'from_s'), pct: toNum(x.pct, 'pct') }))
     .sort((a, b) => a.brand.localeCompare(b.brand) || a.from_s - b.from_s);
   const groups = new Map<string, Group>();
+  const causes = new Map<string, { trains: number; delay_s: number; cost: number }>();
+  const priceOf = (brand: string) => {
+    const price = prices.find((x) => x.brand === brand);
+    if (!price) throw new Error(`prix de référence absent pour ${brand}`);
+    return price;
+  };
   for (const row of rows) {
     const n = toNum(row.n, row.metric);
     const key = `${row.brand}|${row.axis}`;
     const g = groups.get(key) ?? { brand: row.brand, axis: row.axis, ...empty() };
     groups.set(key, g);
     const [kind, bucket] = row.metric.split(':');
-    if (bucket !== undefined) {
+    if (bucket !== undefined && kind.startsWith('cause')) {
+      const c = causes.get(bucket) ?? { trains: 0, delay_s: 0, cost: 0 };
+      causes.set(bucket, c);
+      if (kind === 'cause') c.trains += n;
+      else if (kind === 'cause_delay_s') c.delay_s += n;
+      else if (kind === 'cause_comp') { const pr = priceOf(row.brand); c.cost += (n / 100) * pr.price_eur_ht * pr.seats * DEFAULT_OCCUPANCY; }
+    } else if (bucket !== undefined) {
       const target = kind === 'terminus' ? g.terminus_buckets : kind === 'stop' ? g.stop_buckets : undefined;
       if (target && bucket in target) target[bucket] += n;
     } else if ((COUNTS as readonly string[]).includes(row.metric)) {
@@ -96,8 +110,13 @@ export function shapeStats(rows: StatRow[], rawPrices: Price[], rawScale: Scale[
   }
   totals.official_regularity_pct = regularity(totals);
 
+  const cause_breakdown = [...causes.entries()]
+    .filter(([, c]) => c.trains > 0)
+    .map(([category, c]) => ({ category, trains: c.trains, avg_delay_min: Math.round(c.delay_s / c.trains / 60), cost_eur_ht: round(c.cost, 2) }))
+    .sort((a, b) => b.cost_eur_ht - a.cost_eur_ht || b.trains - a.trains || a.category.localeCompare(b.category));
+
   return {
-    from: p.from, to: p.to, groups: list, totals,
+    from: p.from, to: p.to, groups: list, totals, cause_breakdown,
     assumptions: {
       occupancy: DEFAULT_OCCUPANCY, prices, compensation_scale: scale, range: RANGE,
     },

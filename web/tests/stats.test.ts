@@ -121,3 +121,21 @@ test('les constantes de la règle sont publiées avec les hypothèses', () => {
   const p = shapeStats([], prices, scale, params);
   expect(p.assumptions.range).toEqual({ delay_tolerance_s: 299, aberrant_delay_s: 43200 });
 });
+
+test('cause_breakdown : coût par marque, tri par coût puis trains, catégories vides omises', () => {
+  const p = shapeStats([
+    r('INOUI', 'SUD_EST', 'cause:meteo', 2), r('INOUI', 'SUD_EST', 'cause_delay_s:meteo', 2460), r('INOUI', 'SUD_EST', 'cause_comp:meteo', 25),
+    r('OUIGO', 'NORD', 'cause:meteo', 1), r('OUIGO', 'NORD', 'cause_delay_s:meteo', 3600), r('OUIGO', 'NORD', 'cause_comp:meteo', 25),
+    r('INOUI', 'SUD_EST', 'cause:regulation', 3), r('INOUI', 'SUD_EST', 'cause_delay_s:regulation', 1800), r('INOUI', 'SUD_EST', 'cause_comp:regulation', 0),
+    r('INOUI', 'SUD_EST', 'cause:autre', 0),
+  ], prices, scale, params);
+  const cost = Math.round((0.25 * 46.6 * 556 * 0.75 + 0.25 * 34.2 * 634 * 0.75) * 100) / 100;
+  expect(p.cause_breakdown).toEqual([
+    { category: 'meteo', trains: 3, avg_delay_min: 34, cost_eur_ht: cost },
+    { category: 'regulation', trains: 3, avg_delay_min: 10, cost_eur_ht: 0 },
+  ]);
+});
+
+test('sans mesures de cause (ancienne réponse) : cause_breakdown vide', () => {
+  expect(shapeStats([r('INOUI', 'SUD_EST', 'circulated', 1)], prices, scale, params).cause_breakdown).toEqual([]);
+});
