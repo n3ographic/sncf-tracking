@@ -2,6 +2,7 @@ import { supabaseDeps } from '../../lib/supabase';
 import { loadRules, type Rules } from '../../lib/rules';
 import FootBar from '../terminal/foot-bar';
 import StatusBar from '../terminal/status-bar';
+import { CAUSE_LABELS } from '../../lib/causes';
 
 export const metadata = { title: 'Méthodologie · Observatoire TGV' };
 // Rendue à chaque requête : un build sans accès à la base ne doit pas figer « règles indisponibles ».
@@ -154,6 +155,19 @@ export default async function Page() {
           L’occupation reste à 0,75 dans les trois cas : la fourchette traduit l’incertitude de mesure, pas celle du prix, des places et de l’occupation.</p>
         <h3>Retards aberrants</h3>
         <p>Un retard au terminus d’au moins 12 heures est écarté des mesures (régularité, tranches de retard, indemnités) et compté à part (métrique <code>aberrant</code>) : un TGV n’a pas 12 heures de retard, il s’agit d’une erreur de donnée.</p>
+      </section>
+
+      <section>
+        <h2>Causes de retard</h2>
+        <p>Chaque alerte du flux temps réel peut porter un texte de cause. Ce texte est classé par des règles publiques (table <code>cause_rules</code>, voir le{' '}
+          <a href={`${REPO}/blob/main/supabase/migrations/20261027000001_cause_categories.sql`}>fichier de migration</a>) : on lit la phrase qui suit « Cause : »
+          (sinon le début du message), et la première règle qui correspond, par ordre de priorité, donne la catégorie. Seuls les trains en retard d’au moins 5 minutes au terminus
+          sont comptés, hors trains supprimés et retards aberrants.</p>
+        <ul>
+          {Object.entries(CAUSE_LABELS).map(([code, l]) => <li key={code}>{l.long}</li>)}
+        </ul>
+        <p><strong>Limites.</strong> La cause est celle que SNCF déclare, elle n’est pas vérifiée. Seule la dernière cause connue d’un train est gardée.
+          « Enchaînement » masque la cause d’origine du retard précédent. Les causes n’interviennent pas dans le calcul des indemnités.</p>
       </section>
 
       <section>
