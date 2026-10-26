@@ -54,10 +54,10 @@ export default async function Page() {
         <ul>
           <li>Flux GTFS temps réel de la SNCF (Trip Updates et Service Alertes), via <Link href="https://transport.data.gouv.fr">transport.data.gouv.fr</Link>.</li>
           <li>GTFS statique SNCF (SNCF Open Data) pour les horaires théoriques.</li>
-          <li>Fichier de formes des lignes du Réseau Ferré National, SNCF Réseau, pour les tracés de la carte.</li>
+          <li>Fichier de formes des lignes du Réseau Ferré National, SNCF Réseau, pour les tracés de la carte. Pour les paires d'arrêts que ce fichier ne couvre pas (gares étrangères, interconnexion de Marne-la-Vallée, quelques lignes régionales), tracés de <Link href="https://trainnomade.fr/donnees/">Train Nomade</Link>, d'après © contributeurs OpenStreetMap.</li>
           <li><Link href="https://www.data.gouv.fr/datasets/regularite-mensuelle-tgv-par-liaisons">Régularité mensuelle TGV par liaisons</Link> (SNCF, data.gouv.fr) pour la définition de la régularité officielle.</li>
         </ul>
-        <p>Ces données sont sous licence ODbL 1.0. Contient des informations de SNCF Open Data, de SNCF Réseau et de transport.data.gouv.fr, sous licence ODbL.
+        <p>Ces données sont sous licence ODbL 1.0. Contient des informations de SNCF Open Data, de SNCF Réseau, de Train Nomade, des contributeurs OpenStreetMap et de transport.data.gouv.fr, sous licence ODbL.
           Observatoire indépendant, non affilié à SNCF ni à OUIGO.</p>
       </section>
 
