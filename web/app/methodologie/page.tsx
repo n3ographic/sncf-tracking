@@ -147,6 +147,13 @@ export default async function Page() {
           Il ne compte que les trains <strong>observés</strong> dans le flux temps réel et n’extrapole jamais aux trains non observés : il sous-estime donc la réalité tant que la couverture (part des trains prévus effectivement observés) est faible. La couverture est toujours affichée à côté du chiffre.</p>
         <p><strong>Hypothèses.</strong> Une seule rame est comptée (les rames couplées ne sont pas connues) : c’est un plancher. L’occupation de référence est de 0,75,
           <strong> hypothèse non sourcée</strong> ; le coût est proportionnel à l’occupation, <code>/api/stats</code> fournit aussi le coût à rames pleines.</p>
+        <h3>Fourchette</h3>
+        <p>Le flux publie les retards par pas de 5 minutes : le retard réel est à moins de 4 min 59 s du retard publié, et le sens de l’arrondi est inconnu. Les montants sont donc donnés avec une fourchette.
+          Le montant <strong>central</strong> utilise le retard publié. La borne <strong>haute</strong> ajoute 4 min 59 s à chaque retard (un train publié à 30 minutes dépasse alors le seuil de 31 minutes).
+          La borne <strong>basse</strong> retire 4 min 59 s et exclut aussi les trains qui sautent un arrêt intermédiaire, dont le retard au terminus reste compté au centre et en haut.
+          L’occupation reste à 0,75 dans les trois cas : la fourchette traduit l’incertitude de mesure, pas celle du prix, des places et de l’occupation.</p>
+        <h3>Retards aberrants</h3>
+        <p>Un retard au terminus d’au moins 12 heures est écarté des mesures (régularité, tranches de retard, indemnités) et compté à part (métrique <code>aberrant</code>) : un TGV n’a pas 12 heures de retard, il s’agit d’une erreur de donnée.</p>
       </section>
 
       <section>
@@ -159,7 +166,7 @@ export default async function Page() {
         <h2>Limites connues</h2>
         <ul>
           <li>La collecte a commencé le 20 octobre 2026 : les premières périodes sont incomplètes (beaucoup de trains « jamais observés »).</li>
-          <li>Les retards du flux vont par pas de 5 minutes (aucun retard publié entre 1 et 4 minutes). « À l’heure » équivaut à un retard publié de 0 ; la régularité calculée est une approximation de la régularité officielle, à calibrer avant toute comparaison.</li>
+          <li>Les retards du flux vont par pas de 5 minutes (aucun retard publié entre 1 et 4 minutes). « À l’heure » équivaut à un retard publié de 0 ; la régularité calculée est une approximation de la régularité officielle, à calibrer avant toute comparaison. Les indemnités en dépendent aux seuils de 30 minutes et de 3 heures : d’où la fourchette.</li>
           <li>Les trains absents du plan du jour ne sont pas collectés.</li>
           <li>Les chiffres reposant sur moins de 30 trains ayant circulé sont estompés : ils ne permettent pas de conclure.</li>
           <li>Les causes de retard ne sont pas encore agrégées.</li>
