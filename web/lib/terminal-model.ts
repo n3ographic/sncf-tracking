@@ -1,4 +1,4 @@
-import { SAMPLE_MIN, TERMINUS_BUCKETS } from './dashboard-model';
+import { SAMPLE_MIN, TERMINUS_BUCKETS, isSmallSample } from './dashboard-model';
 import type { LiveItem } from './map-model';
 import type { Group } from './stats';
 
@@ -98,4 +98,51 @@ export function eurRange(low: number | null, high: number | null): string | null
   const fmt = (n: number) => (n / div).toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
   const a = fmt(low), b = fmt(high);
   return a === b ? `${a}${unit}` : `${a} – ${b}${unit}`;
+}
+
+// Trains en route par tranche de retard (minutes), supprimés écartés ; retard absent ou négatif = tranche 0.
+const BUCKET_FROM_MIN = [0, 1, 5, 15, 30, 60, 120, 180];
+export function liveBuckets(trains: LiveItem[]): { bucket: string; n: number }[] {
+  const counts = TERMINUS_BUCKETS.map(() => 0);
+  for (const t of trains) {
+    if (t.cancelled) continue;
+    const min = Math.floor(Math.max(t.delay_s ?? 0, 0) / 60);
+    counts[BUCKET_FROM_MIN.filter((b) => min >= b).length - 1]++;
+  }
+  return TERMINUS_BUCKETS.map((bucket, i) => ({ bucket, n: counts[i] }));
+}
+
+const HHMM = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+
+// Les n trains en route qui arrivent le plus tôt : heure prévue + retard publié.
+export function nextArrivals(trains: LiveItem[], n: number): (LiveItem & { eta: string })[] {
+  const at = (t: LiveItem) => Date.parse(t.arr_planned) + (t.delay_s ?? 0) * 1000;
+  return trains
+    .filter((t) => !t.cancelled)
+    .sort((a, b) => at(a) - at(b) || a.train_number.localeCompare(b.train_number))
+    .slice(0, n)
+    .map((t) => ({ ...t, eta: HHMM.format(at(t)) }));
+}
+
+// Répartition par marque sur la période ; parts en % de la somme des marques présentes.
+export function brandSplit(groups: Group[]): { brand: string; circulated: number; pct: number | null; cost: number; small: boolean; trains_share: number; cost_share: number }[] {
+  const by = new Map<string, { circulated: number; on_time: number; cost: number }>();
+  for (const g of groups) {
+    const a = by.get(g.brand) ?? { circulated: 0, on_time: 0, cost: 0 };
+    a.circulated += g.circulated;
+    a.on_time += g.on_time_official;
+    a.cost += g.estimated_cost_eur_ht;
+    by.set(g.brand, a);
+  }
+  const totalN = [...by.values()].reduce((s, a) => s + a.circulated, 0);
+  const totalC = [...by.values()].reduce((s, a) => s + a.cost, 0);
+  const share = (v: number, t: number) => (t === 0 ? 0 : Math.round((v / t) * 100));
+  return ['INOUI', 'OUIGO'].filter((b) => by.has(b)).map((brand) => {
+    const a = by.get(brand)!;
+    return {
+      brand, circulated: a.circulated, cost: a.cost, small: isSmallSample(a),
+      pct: a.circulated === 0 ? null : Math.round((a.on_time / a.circulated) * 1000) / 10,
+      trains_share: share(a.circulated, totalN), cost_share: share(a.cost, totalC),
+    };
+  });
 }

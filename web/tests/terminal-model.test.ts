@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { axisRegularity, bucketBar, charBar, collectStatus, delayTone, eurRange, periodLabel, periodQuery, tickerItems, topDelays } from '../lib/terminal-model';
+import { axisRegularity, bucketBar, brandSplit, charBar, collectStatus, delayTone, eurRange, liveBuckets, nextArrivals, periodLabel, periodQuery, tickerItems, topDelays } from '../lib/terminal-model';
 import type { LiveItem } from '../lib/map-model';
 import type { Group } from '../lib/stats';
 
@@ -95,4 +95,41 @@ test('eurRange : bornes égales une fois arrondies, bornes manquantes', () => {
   expect(eurRange(null, 2000000)).toBeNull();
   expect(eurRange(2000000, null)).toBeNull();
   expect(eurRange(null, null)).toBeNull();
+});
+
+test('liveBuckets : tranches des retards en minutes, supprimés écartés, retard absent ou négatif à 0', () => {
+  const ds = [0, 60, 299, 300, 899, 900, 1800, 3600, 7200, 10800, undefined, -120];
+  const l = [...ds.map((d, i) => item({ train_number: String(i), delay_s: d })), item({ train_number: 'x', delay_s: 5000, cancelled: true })];
+  const r = liveBuckets(l);
+  expect(r.map((b) => b.bucket)).toEqual(['0', '1-4', '5-14', '15-29', '30-59', '60-119', '120-179', '180+']);
+  expect(r.map((b) => b.n)).toEqual([3, 2, 2, 1, 1, 1, 1, 1]);
+  expect(liveBuckets([]).map((b) => b.n)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+});
+
+test('nextArrivals : tri par heure estimée puis numéro, supprimés écartés, coupe à n', () => {
+  const l = [
+    item({ train_number: 'late', arr_planned: '2026-10-22T17:00:00Z', delay_s: 3600 }),
+    item({ train_number: 'b', arr_planned: '2026-10-22T17:30:00Z' }),
+    item({ train_number: 'a', arr_planned: '2026-10-22T17:30:00Z' }),
+    item({ train_number: 'x', arr_planned: '2026-10-22T16:00:00Z', cancelled: true }),
+  ];
+  const r = nextArrivals(l, 8);
+  expect(r.map((t) => t.train_number)).toEqual(['a', 'b', 'late']);
+  expect(r.map((t) => t.eta)).toEqual(['19:30', '19:30', '20:00']);
+  expect(nextArrivals(l, 2)).toHaveLength(2);
+  expect(nextArrivals([], 8)).toEqual([]);
+});
+
+test('brandSplit : régularité, indemnités et parts par marque ; marque absente omise', () => {
+  const g = (brand: string, axis: string, circulated: number, on_time_official: number, estimated_cost_eur_ht: number) =>
+    ({ brand, axis, circulated, on_time_official, estimated_cost_eur_ht }) as Group;
+  const r = brandSplit([g('INOUI', 'EST', 300, 210, 6000), g('INOUI', 'NORD', 100, 70, 2000), g('OUIGO', 'EST', 100, 80, 2000)]);
+  expect(r).toEqual([
+    { brand: 'INOUI', circulated: 400, pct: 70, cost: 8000, small: false, trains_share: 80, cost_share: 80 },
+    { brand: 'OUIGO', circulated: 100, pct: 80, cost: 2000, small: false, trains_share: 20, cost_share: 20 },
+  ]);
+  expect(brandSplit([g('INOUI', 'EST', 100, 70, 2000)]).map((b) => [b.brand, b.trains_share])).toEqual([['INOUI', 100]]);
+  expect(brandSplit([])).toEqual([]);
+  const z = brandSplit([g('OUIGO', 'EST', 0, 0, 0)]);
+  expect(z[0]).toMatchObject({ pct: null, small: true, trains_share: 0, cost_share: 0 });
 });
