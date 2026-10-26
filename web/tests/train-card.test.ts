@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { compensationView, delayBounds, observedAgo, type Rules } from '../lib/train-card';
+import { compensationView, delayBounds, observedAgo, thresholdProgress, type Rules } from '../lib/train-card';
 
 const rules: Rules = {
   compensation_scale: [
@@ -39,4 +39,14 @@ test('observedAgo : minutes depuis la dernière observation, absent si inconnue'
   expect(observedAgo('2026-10-26T17:57:10Z', now)).toBe(3);
   expect(observedAgo('2026-10-26T18:00:30Z', now)).toBe(0);
   expect(observedAgo(undefined, now)).toBeNull();
+});
+
+test('thresholdProgress : avancement du retard entre le palier en cours et le prochain seuil', () => {
+  // INOUI : 0 → 1860 s (25 %) → 7200 s (50 %)
+  expect(thresholdProgress('INOUI', 930, rules)).toEqual({ from_s: 0, to_s: 1860, ratio: 0.5 });
+  expect(thresholdProgress('INOUI', 1860, rules)).toEqual({ from_s: 1860, to_s: 7200, ratio: 0 });
+  expect(thresholdProgress('INOUI', 4530, rules)!.ratio).toBeCloseTo(0.5, 5);
+  expect(thresholdProgress('INOUI', 9000, rules)).toBeNull(); // dernier palier
+  expect(thresholdProgress('INOUI', undefined, rules)).toEqual({ from_s: 0, to_s: 1860, ratio: 0 });
+  expect(thresholdProgress('AUTRE', 100, rules)).toBeNull(); // marque sans barème
 });

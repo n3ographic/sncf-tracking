@@ -36,3 +36,13 @@ export function observedAgo(last_seen_at: string | undefined, now: Date): number
   if (!Number.isFinite(seen)) return null;
   return Math.max(0, Math.round((now.getTime() - seen) / 60000)) || 0;
 }
+
+// Avancement du retard publié entre le seuil du palier en cours (0 avant le premier) et le prochain seuil ; null au dernier palier ou sans barème.
+export function thresholdProgress(brand: string, delay_s: number | undefined, rules: Rules): { from_s: number; to_s: number; ratio: number } | null {
+  const marks = rules.compensation_scale.filter((s) => s.brand === brand).map((s) => s.from_s).sort((a, b) => a - b);
+  const d = Math.max(delay_s ?? 0, 0);
+  const to_s = marks.find((m) => m > d);
+  if (to_s === undefined) return null;
+  const from_s = marks.filter((m) => m <= d).pop() ?? 0;
+  return { from_s, to_s, ratio: (d - from_s) / (to_s - from_s) };
+}

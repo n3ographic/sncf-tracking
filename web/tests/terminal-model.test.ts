@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { axisRegularity, bucketBar, brandSplit, charBar, collectStatus, delayTone, eurRange, liveBuckets, nextArrivals, periodLabel, periodQuery, tickerItems, topDelays } from '../lib/terminal-model';
+import { axisRegularity, bucketBar, bucketIndex, brandSplit, charBar, collectStatus, delayTone, eurRange, liveBuckets, nextArrivals, periodLabel, periodQuery, tickerItems, topDelays } from '../lib/terminal-model';
 import type { LiveItem } from '../lib/map-model';
 import type { Group } from '../lib/stats';
 
@@ -133,4 +133,9 @@ test('brandSplit : régularité, indemnités et parts par marque ; marque absent
   expect(brandSplit([])).toEqual([]);
   const z = brandSplit([g('OUIGO', 'EST', 0, 0, 0)]);
   expect(z[0]).toMatchObject({ pct: null, small: true, trains_share: 0, cost_share: 0 });
+});
+
+test('bucketIndex : indice de la tranche de TERMINUS_BUCKETS pour un retard en secondes', () => {
+  expect([undefined, -5, 0, 59, 60, 299, 300, 899, 900, 1800, 3600, 7200, 10800, 99999].map(bucketIndex))
+    .toEqual([0, 0, 0, 0, 1, 1, 2, 2, 3, 4, 5, 6, 7, 7]);
 });

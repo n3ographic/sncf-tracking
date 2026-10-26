@@ -102,13 +102,17 @@ export function eurRange(low: number | null, high: number | null): string | null
 
 // Trains en route (partis, non supprimés) par tranche de retard (minutes) ; retard absent ou négatif = tranche 0.
 const BUCKET_FROM_MIN = [0, 1, 5, 15, 30, 60, 120, 180];
+// Indice dans TERMINUS_BUCKETS du retard (secondes) ; absent ou négatif = tranche 0.
+export function bucketIndex(delay_s: number | undefined): number {
+  const min = Math.floor(Math.max(delay_s ?? 0, 0) / 60);
+  return BUCKET_FROM_MIN.filter((b) => min >= b).length - 1;
+}
 const departed = (t: LiveItem, now: Date) => !t.cancelled && Date.parse(t.dep_planned) <= now.getTime();
 export function liveBuckets(trains: LiveItem[], now: Date): { bucket: string; n: number }[] {
   const counts = TERMINUS_BUCKETS.map(() => 0);
   for (const t of trains) {
     if (!departed(t, now)) continue;
-    const min = Math.floor(Math.max(t.delay_s ?? 0, 0) / 60);
-    counts[BUCKET_FROM_MIN.filter((b) => min >= b).length - 1]++;
+    counts[bucketIndex(t.delay_s)]++;
   }
   return TERMINUS_BUCKETS.map((bucket, i) => ({ bucket, n: counts[i] }));
 }
