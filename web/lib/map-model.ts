@@ -51,3 +51,10 @@ export function toFeatureCollection(trains: LiveItem[], now: Date, path?: (a: Ln
   }
   return { type: 'FeatureCollection', features };
 }
+
+// Position estimée d'un train, la même que celle de son point sur la carte ; null s'il est inconnu ou sans position.
+export function trainPosition(trains: LiveItem[], tripId: string, now: Date, path?: (a: Lngl, b: Lngl) => Lngl[]): Lngl | null {
+  const t = trains.find((x) => x.trip_id === tripId);
+  const e = t ? estimatePosition(t, now, path) : null;
+  return e ? [e.lon, e.lat] : null;
+}

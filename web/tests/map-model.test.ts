@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { applyFilters, axes, delayClass, isStale, lateCount, toFeatureCollection, type LiveItem } from '../lib/map-model';
+import { applyFilters, axes, delayClass, isStale, lateCount, toFeatureCollection, trainPosition, type LiveItem } from '../lib/map-model';
 
 const NOW = new Date('2026-11-02T11:30:00Z');
 const item = (over: Partial<LiveItem> = {}): LiveItem => ({
@@ -58,4 +58,28 @@ test('toFeatureCollection suit le tracé fourni', () => {
   expect(f.geometry.coordinates[0]).toBeGreaterThan(1.9);
   expect(f.geometry.coordinates[0]).toBeLessThan(3);
   expect(f.geometry.coordinates[1]).toBeLessThan(47.9);
+});
+
+test('trainPosition : un train en mouvement a une position différente à deux instants, entre ses deux arrêts', () => {
+  const l = [item({ trip_id: 'a' }), item({ trip_id: 'b' })];
+  const p1 = trainPosition(l, 'a', new Date('2026-11-02T11:15:00Z'))!;
+  const p2 = trainPosition(l, 'a', new Date('2026-11-02T11:45:00Z'))!;
+  expect(p1).not.toEqual(p2);
+  expect(p2[0]).toBeGreaterThan(p1[0]); // vers l'est
+  for (const p of [p1, p2]) { expect(p[0]).toBeGreaterThan(2); expect(p[0]).toBeLessThan(4); }
+});
+
+test('trainPosition : train inconnu ou sans position estimable : null', () => {
+  const l = [item({ trip_id: 'a' }), item({ trip_id: 'vide', stops: [] })];
+  expect(trainPosition(l, 'inconnu', NOW)).toBeNull();
+  expect(trainPosition(l, 'vide', NOW)).toBeNull();
+});
+
+test('trainPosition : suit le tracé fourni, comme les points de la carte', () => {
+  const detour = (a: [number, number], b: [number, number]) => [a, [a[0], b[1]], b] as [number, number][];
+  const l = [item({ trip_id: 'a' })];
+  const at = new Date('2026-11-02T11:15:00Z');
+  const p = trainPosition(l, 'a', at, detour)!;
+  const f = toFeatureCollection(l, at, detour).features[0].geometry.coordinates;
+  expect(p).toEqual(f);
 });
