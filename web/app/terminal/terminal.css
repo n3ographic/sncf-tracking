@@ -34,7 +34,8 @@ a { color: inherit; }
 .term-center { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
 .term-center .carte { flex: 62 1 0; }
 .term-center .carte-map { min-height: 0; }
-.groups { flex: 38 1 0; min-height: 150px; display: flex; flex-direction: column; font-size: 12px; }
+.term-bottom { flex: 38 1 0; min-height: 150px; display: flex; gap: 6px; }
+.groups { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; font-size: 12px; }
 .groups > .term-panel-title { align-self: flex-start; }
 .groups-scroll { flex: 1; min-height: 0; overflow: auto; }
 .groups table { width: 100%; border-collapse: collapse; }
@@ -42,6 +43,14 @@ a { color: inherit; }
 .groups thead th { position: sticky; top: 0; background: var(--t-panel); color: var(--t-amber-dim); text-transform: uppercase; }
 .groups-bar { white-space: pre; letter-spacing: -1px; }
 .groups-foot { margin: 4px 0 0; font-size: 11px; }
+.causes { flex: 0 0 420px; min-width: 0; display: flex; flex-direction: column; font-size: 12px; }
+.causes > .term-panel-title { align-self: flex-start; }
+.causes-scroll { flex: 1; min-height: 0; overflow: auto; }
+.causes table { width: 100%; border-collapse: collapse; }
+.causes th, .causes td { padding: 1px 8px 1px 0; text-align: left; white-space: nowrap; border-bottom: 1px dotted var(--t-line); font-weight: 400; }
+.causes thead th { position: sticky; top: 0; background: var(--t-panel); color: var(--t-amber-dim); text-transform: uppercase; }
+.causes td:nth-child(n+3) { text-align: right; }
+.causes-bar { white-space: pre; letter-spacing: -1px; }
 .term-btn { font: inherit; background: var(--t-bg); color: var(--t-amber); border: 1px solid var(--t-amber); padding: 0 6px; cursor: pointer; }
 .seg-c.s0 { color: var(--seg0); } .seg-c.s1 { color: var(--seg1); } .seg-c.s2 { color: var(--seg2); } .seg-c.s3 { color: var(--seg3); }
 .seg-c.s4 { color: var(--seg4); } .seg-c.s5 { color: var(--seg5); } .seg-c.s6 { color: var(--seg6); } .seg-c.s7 { color: var(--seg7); }
@@ -66,11 +75,11 @@ a { color: inherit; }
 @media (max-width: 899px) {
   .term { height: auto; overflow: visible; }
   .term-grid { display: flex; flex-direction: column; }
-  .term-col, .term-center { display: contents; }
+  .term-col, .term-center, .term-bottom { display: contents; }
   .term-panel { order: 3; }
   .carte { order: 0; }
   .period-panel { order: 1; }
-  .groups { order: 2; flex: none; min-height: 0; }
+  .groups, .causes { order: 2; flex: none; min-height: 0; }
   .groups-scroll { overflow-x: auto; overflow-y: visible; }
   .carte-map, .term-center .carte-map { height: 60vh; flex: none; }
 }

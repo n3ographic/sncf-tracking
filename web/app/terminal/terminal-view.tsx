@@ -7,6 +7,7 @@ import type { LiveItem } from '../../lib/map-model';
 import type { StatsPayload } from '../../lib/stats';
 import { collectStatus, periodQuery, tickerItems, type Period } from '../../lib/terminal-model';
 import FootBar from './foot-bar';
+import CausesPanel from './causes-panel';
 import GroupsPanel from './groups-panel';
 import LeftPanel from './left-panel';
 import PeriodPicker from './period-picker';
@@ -103,7 +104,10 @@ export default function TerminalView() {
         <div className="term-center">
           <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} selected={selected} onSelect={select} onSpeed={setSpeed}
             overlay={selected ? <TrainPanel train={trains.find((t) => t.trip_id === selected) ?? null} rules={rules} speed={speed} onClose={() => select(null)} /> : null} />
-          <GroupsPanel stats={stats} failed={statsFailed} loading={statsLoading} period={period} onRetry={reloadStats} />
+          <div className="term-bottom">
+            <GroupsPanel stats={stats} failed={statsFailed} loading={statsLoading} period={period} onRetry={reloadStats} />
+            <CausesPanel stats={stats} failed={statsFailed} loading={statsLoading} period={period} />
+          </div>
         </div>
         <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
       </main>
