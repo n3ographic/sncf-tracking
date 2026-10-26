@@ -87,3 +87,10 @@ a { color: inherit; }
 .brand-inoui { color: var(--t-amber); }
 .brand-ouigo { color: var(--t-amber-dim); }
 .brand-bar { white-space: pre; letter-spacing: -1px; }
+.train-close { align-self: flex-start; }
+.train-big { font-size: 26px; font-weight: 600; margin: 2px 0 !important; }
+.meter { white-space: pre; letter-spacing: -1px; }
+.train-cause { max-height: 160px; overflow-y: auto; color: var(--t-amber-dim); }
+@media (max-width: 899px) {
+  .train-close, .train-card { order: 0; }
+}

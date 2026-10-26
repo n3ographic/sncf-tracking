@@ -8,7 +8,6 @@ import {
 } from '../lib/map-model';
 import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from '../lib/traces';
 import { estimatePosition, segmentSpeedKmh, type Lngl } from '../lib/position';
-import { compensationView, delayBounds, observedAgo, type Rules } from '../lib/train-card';
 import { delayTone, type Tone } from '../lib/terminal-model';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
@@ -16,48 +15,27 @@ const TONE_COLORS: Record<Tone, string> = { ontime: '#3ad13a', late: '#ffd24d', 
 const TONE_LABELS: Record<Tone, string> = { ontime: 'À L’HEURE', late: 'RETARD', strong: 'FORT RETARD', severe: 'TRÈS FORT RETARD', cancelled: 'ANNULÉ' };
 type MapLibre = typeof import('maplibre-gl');
 
-const eur = (n: number) => n.toFixed(2).replace('.', ',');
-const range = (lo: number, hi: number, fmt: (n: number) => string) => (lo === hi ? fmt(hi) : `${fmt(lo)} À ${fmt(hi)}`);
-
-// Fenêtre au clic : nœuds DOM uniquement (textContent), jamais de HTML venant des données.
-function popupContent(t: LiveItem, now: Date, rules: Rules | null, path?: (a: Lngl, b: Lngl) => Lngl[]): HTMLElement {
+// Étiquette qui suit le train sur la carte : nœuds DOM uniquement (textContent), jamais de HTML venant des données.
+// Le détail du train est dans la fiche de la colonne de droite.
+function popupContent(t: LiveItem): HTMLElement {
   const root = document.createElement('div');
   root.className = 'popup';
-  const line = (text: string, cls?: string) => {
-    const p = document.createElement('p');
-    p.textContent = text;
-    if (cls) p.className = cls;
-    root.appendChild(p);
-  };
   const tone = delayTone(t.delay_s, t.cancelled);
-  const delay = Math.max(t.delay_s ?? 0, 0);
-  line(`${t.brand} ${t.train_number}`, 'popup-title');
-  if (t.origin && t.dest) line(`${t.origin} → ${t.dest}`);
-  line(tone === 'cancelled' ? 'ANNULÉ' : `RETARD PUBLIÉ ${Math.round(delay / 60)}′ · ${TONE_LABELS[tone]}`, `tone-${tone}`);
-  if (!t.cancelled) {
-    const b = delayBounds(delay);
-    line(`RÉEL ENTRE ${Math.round(b.low_s / 60)}′ ET ${Math.round(b.high_s / 60)}′ (RETARDS PUBLIÉS PAR PAS DE 5′)`, 'popup-note');
-    const v = segmentSpeedKmh(t, now, path);
-    if (v !== null) line(`VITESSE ≈ ${Math.round(v)} KM/H (MOYENNE DU TRONÇON)`);
-  }
-  if (t.cause) line(t.cause, 'popup-cause');
-  const cv = !t.cancelled && rules ? compensationView(t.brand, t.delay_s, rules) : null;
-  if (cv) {
-    if (cv.pct_high > 0) line(`INDEMNITÉ THÉORIQUE ${range(cv.pct_low, cv.pct_high, (n) => `${n} %`)} · ${range(cv.eur_low, cv.eur_high, eur)} € / VOYAGEUR HT`);
-    if (cv.next) line(`PROCHAIN SEUIL : ${cv.next.pct} % À +${Math.round(cv.next.from_s / 60)}′ (DANS ${Math.ceil(cv.next.in_s / 60)}′)`, 'popup-note');
-  } else if (!t.cancelled && t.comp_eur_per_passenger_ref > 0) {
-    line(`INDEMNITÉ THÉORIQUE ${t.comp_eur_per_passenger_ref.toFixed(2)} € / VOYAGEUR HT`);
-  }
-  const ago = observedAgo(t.last_seen_at, now);
-  line(ago === null ? 'Position estimée.' : `Position estimée · observé ${ago === 0 ? 'à l’instant' : `il y a ${ago} min`}.`, 'popup-note');
-  if (isStale(t, now)) line('Donnée périmée : le train n’a pas été vu récemment.', 'popup-note');
+  const title = document.createElement('p');
+  title.className = 'popup-title';
+  title.textContent = `${t.brand} ${t.train_number}`;
+  const delay = document.createElement('p');
+  delay.className = `tone-${tone}`;
+  delay.textContent = tone === 'cancelled' ? 'ANNULÉ' : `${tone === 'ontime' ? 'À L’HEURE' : `+${Math.round((t.delay_s ?? 0) / 60)}′`}`;
+  root.append(title, delay);
   return root;
 }
 
 export type Focus = { trip_id: string; at: number } | null;
 
-export default function CarteView({ trains, failed, lastOk, focus, rules }: {
-  trains: LiveItem[]; failed: boolean; lastOk: number | null; focus: Focus; rules: Rules | null;
+export default function CarteView({ trains, failed, lastOk, focus, selected, onSelect, onSpeed }: {
+  trains: LiveItem[]; failed: boolean; lastOk: number | null; focus: Focus;
+  selected: string | null; onSelect: (trip_id: string | null) => void; onSpeed: (kmh: number | null) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -75,9 +53,11 @@ export default function CarteView({ trains, failed, lastOk, focus, rules }: {
   const [ctrlOpen, setCtrlOpen] = useState(true);
   useEffect(() => { if (window.matchMedia('(max-width: 899px)').matches) setCtrlOpen(false); }, []);
   const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
-  const rulesRef = useRef<Rules | null>(rules);
+  const onSelectRef = useRef(onSelect);
+  const onSpeedRef = useRef(onSpeed);
   trainsRef.current = trains;
-  rulesRef.current = rules;
+  onSelectRef.current = onSelect;
+  onSpeedRef.current = onSpeed;
   filtersRef.current = filters;
 
   // Fenêtre ouverte : elle suit son train (déplacée à chaque recalcul) et se met à jour avec les données.
@@ -85,13 +65,15 @@ export default function CarteView({ trains, failed, lastOk, focus, rules }: {
   const openPopup = (t: LiveItem, at: [number, number]) => {
     const ml = mlRef.current, m = mapRef.current;
     if (!ml || !m) return;
-    followRef.current?.popup.remove();
-    const now = new Date();
-    const content = popupContent(t, now, rulesRef.current, pathRef.current);
-    const popup = new ml.Popup({ maxWidth: '320px' }).setLngLat(at).setDOMContent(content).addTo(m);
+    const old = followRef.current;
+    followRef.current = null; // l'ancienne étiquette qu'on remplace ne doit pas désélectionner
+    old?.popup.remove();
+    const content = popupContent(t);
+    const popup = new ml.Popup({ maxWidth: '200px' }).setLngLat(at).setDOMContent(content).addTo(m);
     const follow = { train: t, text: content.textContent ?? '', popup };
     followRef.current = follow;
-    popup.on('close', () => { if (followRef.current === follow) followRef.current = null; });
+    popup.on('close', () => { if (followRef.current === follow) { followRef.current = null; onSelectRef.current(null); } });
+    onSelectRef.current(t.trip_id);
   };
 
   // Carte : montée côté navigateur uniquement.
@@ -121,11 +103,12 @@ export default function CarteView({ trains, failed, lastOk, focus, rules }: {
         if (pos) f.popup.setLngLat(pos);
         const cur = trainsRef.current.find((x) => x.trip_id === f.train.trip_id);
         if (cur) {
-          // Le contenu dépend de l'heure (vitesse, ancienneté de l'observation) : on le refait et on remplace s'il a changé.
-          const content = popupContent(cur, at, rulesRef.current, pathRef.current);
+          // L'étiquette suit le retard ; la vitesse du tronçon part vers la fiche.
+          const content = popupContent(cur);
           if (content.textContent !== f.text) f.popup.setDOMContent(content);
           f.train = cur;
           f.text = content.textContent ?? '';
+          onSpeedRef.current(segmentSpeedKmh(cur, at, pathRef.current));
         }
       }
       setNow(Date.now());
@@ -182,6 +165,13 @@ export default function CarteView({ trains, failed, lastOk, focus, rules }: {
     mapRef.current.flyTo({ center: [e.lon, e.lat], zoom: 8 });
     openPopup(t, [e.lon, e.lat]);
   }, [focus]);
+
+  // Fiche fermée depuis la colonne de droite : l'étiquette disparaît (sans redésélectionner).
+  useEffect(() => {
+    if (selected !== null) return;
+    const f = followRef.current;
+    if (f) { followRef.current = null; f.popup.remove(); }
+  }, [selected]);
 
   // Case « Afficher les voies » : bascule la visibilité de la couche une fois la carte prête.
   useEffect(() => {

@@ -12,6 +12,7 @@ import LeftPanel from './left-panel';
 import PeriodPicker from './period-picker';
 import RightPanel from './right-panel';
 import StatusBar from './status-bar';
+import TrainPanel from './train-panel';
 import Ticker from './ticker';
 
 const REFRESH_MS = 60_000;
@@ -29,6 +30,8 @@ export default function TerminalView() {
   const [period, setPeriod] = useState<Period>('7d');
   const statsSeq = useRef(0);
   const [focus, setFocus] = useState<Focus>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [speed, setSpeed] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -84,8 +87,9 @@ export default function TerminalView() {
   useEffect(() => { loadStats(period); }, [period, loadStats]);
   const reloadStats = useCallback(() => loadStats(period), [period, loadStats]);
 
+  const select = useCallback((id: string | null) => { setSelected(id); setSpeed(null); }, []);
   const rules = useMemo(() => (stats ? { compensation_scale: stats.assumptions.compensation_scale, prices: stats.assumptions.prices } : null), [stats]);
-  const onFocus = useCallback((trip_id: string) => setFocus({ trip_id, at: Date.now() }), []);
+  const onFocus = useCallback((trip_id: string) => { setFocus({ trip_id, at: Date.now() }); setSelected(trip_id); }, []);
   const items = useMemo(() => tickerItems(trains, 15), [trains]);
   const status = liveFailed && trains.length === 0 ? { status: 'unknown' as const, ageMin: null } : collectStatus(trains, new Date());
 
@@ -97,10 +101,14 @@ export default function TerminalView() {
         <h1 className="sr-only">Observatoire TGV : trains en circulation, retards et indemnités théoriques</h1>
         <LeftPanel trains={trains} liveFailed={liveFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} onFocus={onFocus} />
         <div className="term-center">
-          <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} rules={rules} />
+          <CarteView trains={trains} failed={liveFailed} lastOk={lastOk} focus={focus} selected={selected} onSelect={select} onSpeed={setSpeed} />
           <GroupsPanel stats={stats} failed={statsFailed} loading={statsLoading} period={period} onRetry={reloadStats} />
         </div>
-        <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
+        {selected ? (
+          <TrainPanel train={trains.find((t) => t.trip_id === selected) ?? null} rules={rules} speed={speed} onClose={() => select(null)} />
+        ) : (
+          <RightPanel cumul={cumul} cumulFailed={cumulFailed} stats={stats} statsFailed={statsFailed} statsLoading={statsLoading} period={period} />
+        )}
       </main>
       <FootBar />
     </div>
