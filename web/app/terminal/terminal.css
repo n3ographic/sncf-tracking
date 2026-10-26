@@ -75,3 +75,15 @@ a { color: inherit; }
   .carte-map, .term-center .carte-map { height: 60vh; flex: none; }
 }
 .term-h1 { display: inline-block; background: var(--t-amber); color: #000; padding: 0 8px; margin: 8px 0 12px; font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.live-buckets { list-style: none; margin: 0; padding: 0; }
+.live-buckets li { display: grid; grid-template-columns: 42px 1fr auto; gap: 6px; align-items: baseline; }
+.live-buckets .seg-c { white-space: pre; letter-spacing: -1px; }
+.live-buckets li > :last-child { text-align: right; }
+.arrivals button { gap: 6px; }
+.arrivals .arr-dest { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-amber-dim); }
+.brand-split { margin: 0 0 4px; }
+.brand-split > div { display: grid; grid-template-columns: 52px 1fr; gap: 6px; }
+.brand-split dt, .brand-split dd { margin: 0; }
+.brand-inoui { color: var(--t-amber); }
+.brand-ouigo { color: var(--t-amber-dim); }
+.brand-bar { white-space: pre; letter-spacing: -1px; }
