@@ -1,0 +1,38 @@
+import { RANGE, type Price, type Scale } from './stats';
+
+export type Rules = { compensation_scale: Scale[]; prices: Price[] };
+
+// Le retard est publié par pas de 5 min : le retard réel est à moins de 299 s du retard publié, dans un sens inconnu.
+export function delayBounds(delay_s: number): { low_s: number; high_s: number } {
+  return { low_s: Math.max(delay_s - RANGE.delay_tolerance_s, 0), high_s: delay_s + RANGE.delay_tolerance_s };
+}
+
+const pctAt = (scale: Scale[], brand: string, d: number) =>
+  scale.reduce((m, s) => (s.brand === brand && s.from_s <= d ? Math.max(m, s.pct) : m), 0);
+
+export type CompensationView = {
+  pct_low: number; pct_high: number; eur_low: number; eur_high: number; // € HT par voyageur, à l'occupation près
+  next: { from_s: number; pct: number; in_s: number } | null; // prochain seuil au-dessus du retard publié
+};
+
+export function compensationView(brand: string, delay_s: number | undefined, rules: Rules): CompensationView | null {
+  const price = rules.prices.find((p) => p.brand === brand);
+  if (!price) return null;
+  const d = Math.max(delay_s ?? 0, 0);
+  const { low_s, high_s } = delayBounds(d);
+  const pct_low = pctAt(rules.compensation_scale, brand, low_s);
+  const pct_high = pctAt(rules.compensation_scale, brand, high_s);
+  const eur = (pct: number) => Math.round(pct * price.price_eur_ht) / 100;
+  const above = rules.compensation_scale.filter((s) => s.brand === brand && s.from_s > d).sort((a, b) => a.from_s - b.from_s)[0];
+  return {
+    pct_low, pct_high, eur_low: eur(pct_low), eur_high: eur(pct_high),
+    next: above ? { from_s: above.from_s, pct: above.pct, in_s: above.from_s - d } : null,
+  };
+}
+
+// Minutes depuis la dernière observation du train par le collecteur ; null si inconnue.
+export function observedAgo(last_seen_at: string | undefined, now: Date): number | null {
+  const seen = last_seen_at === undefined ? NaN : Date.parse(last_seen_at);
+  if (!Number.isFinite(seen)) return null;
+  return Math.max(0, Math.round((now.getTime() - seen) / 60000)) || 0;
+}

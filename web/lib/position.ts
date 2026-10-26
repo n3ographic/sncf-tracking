@@ -30,6 +30,18 @@ function along(line: Lngl[], p: number): Lngl {
 const ms = (iso?: string) => (iso === undefined ? NaN : Date.parse(iso));
 const okCoord = (lon?: number, lat?: number): boolean => lon != null && lat != null && Number.isFinite(lon + lat);
 
+// Horaires effectifs (ms) de chaque arrêt : prévus + retard de l'arrêt (publié, sinon précédent, sinon du train ; jamais négatif).
+function effectiveTimes(train: Pick<LiveTrain, 'stops' | 'delay_s'>): { arr: number; dep: number }[] {
+  let delay = Math.max(train.delay_s ?? 0, 0);
+  return train.stops.map((st) => {
+    if (st.delay_s != null) delay = Math.max(st.delay_s, 0);
+    const d = delay * 1000;
+    const arr = (Number.isFinite(ms(st.arr)) ? ms(st.arr) : ms(st.dep)) + d;
+    const dep = (Number.isFinite(ms(st.dep)) ? ms(st.dep) : ms(st.arr)) + d;
+    return { arr, dep };
+  });
+}
+
 // Position estimée le long de la fenêtre d'arrêts renvoyée par /api/live. Chaque arrêt a ses horaires prévus et son
 // retard (publié, sinon celui de l'arrêt précédent, sinon le retard du train, sinon 0 ; jamais négatif). Le tronçon
 // actif est celui qui encadre l'heure : à l'arrêt tant que le départ effectif n'est pas passé, en route ensuite jusqu'à
@@ -45,14 +57,7 @@ export function estimatePosition(
   const stopAt = (i: number, state: PositionState): Estimate => ({ lon: stops[i].lon!, lat: stops[i].lat!, state });
   if (train.cancelled || stops.length === 1) return stopAt(0, 'at_stop');
 
-  let delay = Math.max(train.delay_s ?? 0, 0);
-  const eff = stops.map((st) => {
-    if (st.delay_s != null) delay = Math.max(st.delay_s, 0);
-    const d = delay * 1000;
-    const arr = (Number.isFinite(ms(st.arr)) ? ms(st.arr) : ms(st.dep)) + d;
-    const dep = (Number.isFinite(ms(st.dep)) ? ms(st.dep) : ms(st.arr)) + d;
-    return { arr, dep };
-  });
+  const eff = effectiveTimes(train);
 
   const t = now.getTime();
   for (let i = 0; i < stops.length - 1; i++) {
@@ -68,4 +73,42 @@ export function estimatePosition(
   const last = stops.length - 1;
   if (!okCoord(stops[last].lon, stops[last].lat)) return null;
   return stopAt(last, 'arrived');
+}
+
+const EARTH_KM = 6371;
+const rad = (d: number) => (d * Math.PI) / 180;
+function lengthKm(line: Lngl[]): number {
+  return line.slice(1).reduce((sum, [lon, lat], i) => {
+    const [lon0, lat0] = line[i];
+    const h = Math.sin(rad(lat - lat0) / 2) ** 2 + Math.cos(rad(lat0)) * Math.cos(rad(lat)) * Math.sin(rad(lon - lon0) / 2) ** 2;
+    return sum + 2 * EARTH_KM * Math.asin(Math.sqrt(h));
+  }, 0);
+}
+
+// Au-delà, l'horaire ou le tracé du tronçon est douteux : on n'affiche pas de vitesse.
+const MAX_PLAUSIBLE_KMH = 330;
+
+// Vitesse moyenne prévue du tronçon en cours (longueur du tracé / durée départ-arrivée prévue) ; le retard décale les
+// horaires sans la changer. Seulement en route : null à l'arrêt, arrivé, supprimé ou si le tronçon est inconnu.
+export function segmentSpeedKmh(
+  train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>,
+  now: Date,
+  path: (a: Lngl, b: Lngl) => Lngl[] = segment,
+): number | null {
+  const { stops } = train;
+  if (train.cancelled || stops.length < 2) return null;
+  const eff = effectiveTimes(train);
+  const t = now.getTime();
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i], b = stops[i + 1];
+    if (!okCoord(a.lon, a.lat) || !okCoord(b.lon, b.lat) || !Number.isFinite(eff[i].dep) || !Number.isFinite(eff[i + 1].arr)) return null;
+    if (t < eff[i].dep) return null;
+    if (t < eff[i + 1].arr) {
+      const hours = (eff[i + 1].arr - eff[i].dep) / 3_600_000;
+      if (hours <= 0) return null;
+      const v = lengthKm(path([a.lon!, a.lat!], [b.lon!, b.lat!])) / hours;
+      return v > MAX_PLAUSIBLE_KMH ? null : v;
+    }
+  }
+  return null;
 }

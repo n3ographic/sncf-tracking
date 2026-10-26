@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { estimatePosition, type Lngl } from '../lib/position';
+import { estimatePosition, segmentSpeedKmh, type Lngl } from '../lib/position';
 import type { LiveStop } from '../lib/live';
 
 const A: LiveStop = { seq: 1, lon: 2, lat: 48, dep: '2026-11-02T11:00:00Z' };
@@ -99,4 +99,24 @@ test('fenêtre qui commence en cours de trajet : le premier arrêt est l’arrê
   const stops: LiveStop[] = [{ ...M, delay_s: 0 }, { ...C, delay_s: 0 }]; // départ de M à 12:10
   expect(estimatePosition(train(stops), at('12:10'))).toMatchObject({ state: 'moving', lon: 4, lat: 46 });
   expect(estimatePosition(train(stops), at('12:00'))).toEqual({ lon: 4, lat: 46, state: 'at_stop' });
+});
+
+test('vitesse du tronçon : longueur du tracé sur durée prévue, seulement en route', () => {
+  const v = segmentSpeedKmh(train([A, B], 0), at('11:30'))!;
+  expect(v).toBeGreaterThan(266);
+  expect(v).toBeLessThan(272);
+  expect(segmentSpeedKmh(train([A, B], 600), at('11:40'))).toBeCloseTo(v, 6); // le retard décale, il ne change pas la vitesse
+  expect(segmentSpeedKmh(train([A, B], 0), at('10:50'))).toBeNull(); // à l'arrêt
+  expect(segmentSpeedKmh(train([A, B], 0), at('12:10'))).toBeNull(); // arrivé
+  expect(segmentSpeedKmh(train([A, B], 0, true), at('11:30'))).toBeNull(); // supprimé
+});
+
+test('vitesse du tronçon : au-delà de 330 km/h, inconnue (horaire ou tracé douteux)', () => {
+  const fast: LiveStop = { ...B, arr: '2026-11-02T11:40:00Z' };
+  expect(segmentSpeedKmh(train([A, fast], 0), at('11:20'))).toBeNull();
+});
+
+test('vitesse du tronçon : suit le tracé fourni, pas la ligne droite', () => {
+  const detour = (a: Lngl, b: Lngl): Lngl[] => [a, [3.5, 47.5], b];
+  expect(segmentSpeedKmh(train([A, B], 0), at('11:30'), detour)!).toBeGreaterThan(segmentSpeedKmh(train([A, B], 0), at('11:30'))!);
 });
