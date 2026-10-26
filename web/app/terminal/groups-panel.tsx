@@ -1,6 +1,6 @@
 import { TERMINUS_BUCKETS, bucketShares, isSmallSample, sortGroups, suppressionPct } from '../../lib/dashboard-model';
 import type { StatsPayload } from '../../lib/stats';
-import { bucketBar, periodLabel, type Period } from '../../lib/terminal-model';
+import { RANGE_HINT, bucketBar, eurRange, periodLabel, type Period } from '../../lib/terminal-model';
 
 const nf = (n: number) => n.toLocaleString('fr-FR');
 const pct = (n: number | null) => (n === null ? '—' : `${n.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`);
@@ -45,7 +45,7 @@ export default function GroupsPanel({ stats, failed, loading, period, onRetry }:
                     <td>{pct(g.official_regularity_pct)}</td>
                     <td>{pct(suppressionPct(g))}</td>
                     <td><Bar buckets={g.terminus_buckets} /></td>
-                    <td>{nf(Math.round(g.estimated_cost_eur_ht))} €</td>
+                    <td title={eurRange(g.estimated_cost_eur_ht_low, g.estimated_cost_eur_ht_high) ? `Fourchette ${eurRange(g.estimated_cost_eur_ht_low, g.estimated_cost_eur_ht_high)}. ${RANGE_HINT}` : undefined}>{nf(Math.round(g.estimated_cost_eur_ht))} €</td>
                   </tr>
                 ))}
               </tbody>

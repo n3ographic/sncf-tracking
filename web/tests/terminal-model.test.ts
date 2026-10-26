@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { axisRegularity, bucketBar, charBar, collectStatus, delayTone, periodLabel, periodQuery, tickerItems, topDelays } from '../lib/terminal-model';
+import { axisRegularity, bucketBar, charBar, collectStatus, delayTone, eurRange, periodLabel, periodQuery, tickerItems, topDelays } from '../lib/terminal-model';
 import type { LiveItem } from '../lib/map-model';
 import type { Group } from '../lib/stats';
 
@@ -81,4 +81,18 @@ test('bucketBar : largeur exacte, plus forts restes, vide sans train', () => {
   expect(sum(skew)).toBe(12);
   expect(skew.every((s) => s.len > 0)).toBe(true);
   expect(sum(bucketBar({ '0': 1, '1-4': 1, '5-14': 1 }, 10))).toBe(10);
+});
+
+test('eurRange : millions à deux décimales, milliers entiers, euros entiers', () => {
+  expect(eurRange(2024633, 2783488)).toBe('2,02 – 2,78 M€');
+  expect(eurRange(580400, 719600)).toBe('580 – 720 k€');
+  expect(eurRange(120.4, 180.2)).toBe('120 – 180 €');
+});
+
+test('eurRange : bornes égales une fois arrondies, bornes manquantes', () => {
+  expect(eurRange(0, 0)).toBe('0 €');
+  expect(eurRange(2000000, 2000001)).toBe('2,00 M€');
+  expect(eurRange(null, 2000000)).toBeNull();
+  expect(eurRange(2000000, null)).toBeNull();
+  expect(eurRange(null, null)).toBeNull();
 });

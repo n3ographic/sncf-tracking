@@ -87,3 +87,15 @@ export function bucketBar(buckets: Record<string, number>, width: number): { i: 
   for (let k = width - lens.reduce((a, n) => a + n, 0), j = 0; k > 0; k--, j++) lens[order[j]]++;
   return TERMINUS_BUCKETS.map((bucket, i) => ({ i, bucket, len: lens[i] })).filter((s) => s.len > 0);
 }
+
+// Ce que veulent dire les bornes de la fourchette (infobulle).
+export const RANGE_HINT = 'Bas : retard publié − 4 min 59 s, sans les trains qui sautent un arrêt. Haut : retard publié + 4 min 59 s. Occupation de 0,75 dans les deux cas.';
+
+// Fourchette d'indemnités lisible, dans l'unité de la borne haute ; null s'il manque une borne.
+export function eurRange(low: number | null, high: number | null): string | null {
+  if (low === null || high === null) return null;
+  const [div, unit, digits] = high >= 1e6 ? [1e6, ' M€', 2] : high >= 1e3 ? [1e3, ' k€', 0] : [1, ' €', 0];
+  const fmt = (n: number) => (n / div).toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const a = fmt(low), b = fmt(high);
+  return a === b ? `${a}${unit}` : `${a} – ${b}${unit}`;
+}
