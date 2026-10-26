@@ -100,12 +100,13 @@ export function eurRange(low: number | null, high: number | null): string | null
   return a === b ? `${a}${unit}` : `${a} – ${b}${unit}`;
 }
 
-// Trains en route par tranche de retard (minutes), supprimés écartés ; retard absent ou négatif = tranche 0.
+// Trains en route (partis, non supprimés) par tranche de retard (minutes) ; retard absent ou négatif = tranche 0.
 const BUCKET_FROM_MIN = [0, 1, 5, 15, 30, 60, 120, 180];
-export function liveBuckets(trains: LiveItem[]): { bucket: string; n: number }[] {
+const departed = (t: LiveItem, now: Date) => !t.cancelled && Date.parse(t.dep_planned) <= now.getTime();
+export function liveBuckets(trains: LiveItem[], now: Date): { bucket: string; n: number }[] {
   const counts = TERMINUS_BUCKETS.map(() => 0);
   for (const t of trains) {
-    if (t.cancelled) continue;
+    if (!departed(t, now)) continue;
     const min = Math.floor(Math.max(t.delay_s ?? 0, 0) / 60);
     counts[BUCKET_FROM_MIN.filter((b) => min >= b).length - 1]++;
   }
@@ -115,10 +116,10 @@ export function liveBuckets(trains: LiveItem[]): { bucket: string; n: number }[]
 const HHMM = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 
 // Les n trains en route qui arrivent le plus tôt : heure prévue + retard publié.
-export function nextArrivals(trains: LiveItem[], n: number): (LiveItem & { eta: string })[] {
+export function nextArrivals(trains: LiveItem[], n: number, now: Date): (LiveItem & { eta: string })[] {
   const at = (t: LiveItem) => Date.parse(t.arr_planned) + (t.delay_s ?? 0) * 1000;
   return trains
-    .filter((t) => !t.cancelled)
+    .filter((t) => departed(t, now))
     .sort((a, b) => at(a) - at(b) || a.train_number.localeCompare(b.train_number))
     .slice(0, n)
     .map((t) => ({ ...t, eta: HHMM.format(at(t)) }));

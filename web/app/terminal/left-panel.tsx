@@ -12,10 +12,11 @@ export default function LeftPanel({ trains, liveFailed, stats, statsFailed, stat
 }) {
   const top = topDelays(trains, 10);
   const cancelled = trains.filter((t) => t.cancelled);
+  const now = new Date();
   const down = liveFailed && trains.length === 0;
-  const buckets = liveBuckets(trains);
+  const buckets = liveBuckets(trains, now);
   const maxN = Math.max(...buckets.map((b) => b.n));
-  const arrivals = nextArrivals(trains, 8);
+  const arrivals = nextArrivals(trains, 8, now);
   return (
     <aside className="term-col">
       <section className="term-panel">

@@ -97,27 +97,28 @@ test('eurRange : bornes égales une fois arrondies, bornes manquantes', () => {
   expect(eurRange(null, null)).toBeNull();
 });
 
-test('liveBuckets : tranches des retards en minutes, supprimés écartés, retard absent ou négatif à 0', () => {
+test('liveBuckets : tranches des retards en minutes, supprimés et trains pas encore partis écartés, retard absent ou négatif à 0', () => {
   const ds = [0, 60, 299, 300, 899, 900, 1800, 3600, 7200, 10800, undefined, -120];
-  const l = [...ds.map((d, i) => item({ train_number: String(i), delay_s: d })), item({ train_number: 'x', delay_s: 5000, cancelled: true })];
-  const r = liveBuckets(l);
+  const l = [...ds.map((d, i) => item({ train_number: String(i), delay_s: d })), item({ train_number: 'x', delay_s: 5000, cancelled: true }), item({ train_number: 'f', delay_s: 5000, dep_planned: '2026-10-22T16:00:00Z' })];
+  const r = liveBuckets(l, NOW);
   expect(r.map((b) => b.bucket)).toEqual(['0', '1-4', '5-14', '15-29', '30-59', '60-119', '120-179', '180+']);
   expect(r.map((b) => b.n)).toEqual([3, 2, 2, 1, 1, 1, 1, 1]);
-  expect(liveBuckets([]).map((b) => b.n)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+  expect(liveBuckets([], NOW).map((b) => b.n)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
 });
 
-test('nextArrivals : tri par heure estimée puis numéro, supprimés écartés, coupe à n', () => {
+test('nextArrivals : tri par heure estimée puis numéro, supprimés et trains pas encore partis écartés, coupe à n', () => {
   const l = [
     item({ train_number: 'late', arr_planned: '2026-10-22T17:00:00Z', delay_s: 3600 }),
     item({ train_number: 'b', arr_planned: '2026-10-22T17:30:00Z' }),
     item({ train_number: 'a', arr_planned: '2026-10-22T17:30:00Z' }),
     item({ train_number: 'x', arr_planned: '2026-10-22T16:00:00Z', cancelled: true }),
+    item({ train_number: 'f', arr_planned: '2026-10-22T15:30:00Z', dep_planned: '2026-10-22T15:10:00Z' }),
   ];
-  const r = nextArrivals(l, 8);
+  const r = nextArrivals(l, 8, NOW);
   expect(r.map((t) => t.train_number)).toEqual(['a', 'b', 'late']);
   expect(r.map((t) => t.eta)).toEqual(['19:30', '19:30', '20:00']);
-  expect(nextArrivals(l, 2)).toHaveLength(2);
-  expect(nextArrivals([], 8)).toEqual([]);
+  expect(nextArrivals(l, 2, NOW)).toHaveLength(2);
+  expect(nextArrivals([], 8, NOW)).toEqual([]);
 });
 
 test('brandSplit : régularité, indemnités et parts par marque ; marque absente omise', () => {
