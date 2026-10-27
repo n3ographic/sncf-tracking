@@ -39,6 +39,8 @@ test.each([
   ['Votre train est retardé. Cause : votre conducteur a procédé à une vérification technique et a pu reprendre ensuite sa circulation à TOUTRY.', 'materiel'],
   ["Les équipes du gestionnaire du réseau ferré sont en cours d'intervention. Cause : panne du système informatique à MODANE.", 'infrastructure'],
   ['Votre TGV INOUI a quitté la gare avec du retard. Ce retard était dû à des conditions de départ non réunies avant la mise en circulation du train.', 'exploitation'],
+  ["Cause : signal d'alarme tiré abusivement entre TOULON et MARSEILLE SAINT CHARLES.", 'degradation'],
+  ["Cause : un voyageur a actionné un signal d'alarme à bord d'un train à AGEN.", 'voyageurs_surete'],
   // « dégradation » de la météo reste de la météo (règle météo prioritaire).
   ['Cause : dégradation des conditions météorologiques à BREST.', 'meteo'],
 ])('cause_category(%s) = %s', async (cause, expected) => {
