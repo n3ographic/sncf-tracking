@@ -1,19 +1,30 @@
 .carte { position: relative; display: flex; flex-direction: column; padding: 0; min-height: 0; }
 .carte-map { flex: 1; min-height: 320px; }
 .carte-ctrl { border-bottom: 1px solid var(--t-line); padding: 4px 8px; font-size: 12px; }
-.carte-ctrl summary { cursor: pointer; color: var(--t-amber-dim); }
 .carte-ctrl-row { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding-top: 4px; }
 .carte-ctrl label { display: flex; gap: 6px; align-items: center; }
 .carte-ctrl select { font: inherit; background: var(--t-bg); color: var(--t-amber); border: 1px solid var(--t-line); padding: 2px 4px; }
 .carte-ctrl input[type='checkbox'] { accent-color: var(--t-amber); }
 .carte-count { margin: 0; padding: 4px 8px; border-top: 1px solid var(--t-line); font-size: 12px; }
 .carte-banner { position: absolute; top: 40px; left: 8px; right: 8px; margin: 0; padding: 4px 8px; background: #1f0606; color: var(--t-severe); border: 1px solid var(--t-severe); font-size: 12px; z-index: 2; }
-.maplibregl-popup-content { background: var(--t-panel); color: var(--t-amber); border: 1px solid var(--t-amber); border-radius: 0; padding: 8px 10px; font-family: var(--font-term), monospace; }
+.maplibregl-popup-content { background: var(--t-panel); color: var(--t-amber); border: 1px solid var(--t-amber); border-radius: 0; padding: 8px 28px 8px 10px; font-family: var(--font-term), monospace; }
 .maplibregl-popup-tip { border-top-color: var(--t-amber) !important; border-bottom-color: var(--t-amber) !important; }
-.maplibregl-popup-close-button { color: var(--t-amber); }
+/* La croix a sa propre colonne à droite : elle ne recouvre plus le numéro du train. */
+.maplibregl-popup-close-button { color: var(--t-amber); top: 4px; right: 4px; width: 18px; height: 18px; padding: 0; font-size: 16px; line-height: 16px; }
+.maplibregl-popup-close-button:focus-visible { outline-offset: 0; }
 .popup p { margin: 0 0 4px; font-size: 12px; }
 .popup .popup-title { color: #000; background: var(--t-amber); display: inline-block; padding: 0 4px; font-weight: 600; }
 .popup .popup-cause, .popup .popup-note { color: var(--t-amber-dim); font-size: 11px; }
 .maplibregl-ctrl-attrib { background: rgba(10, 10, 10, 0.85) !important; color: var(--t-amber-dim) !important; }
 .maplibregl-ctrl-attrib a { color: var(--t-amber-dim); }
 .maplibregl-ctrl-attrib-button { filter: invert(1); }
+.carte-ctrl { position: relative; z-index: 5; }
+.carte-search { position: relative; }
+.carte-search input { font: inherit; width: 190px; box-sizing: border-box; background: var(--t-bg); color: var(--t-amber); border: 1px solid var(--t-line); padding: 2px 6px; text-transform: uppercase; }
+.carte-search input::placeholder { color: var(--t-amber-dim); }
+.carte-results { position: absolute; top: 100%; left: 0; z-index: 6; width: min(420px, 90vw); margin: 2px 0 0; padding: 0; list-style: none; background: var(--t-panel); border: 1px solid var(--t-amber); }
+.carte-results li { margin: 0; }
+.carte-results button { all: unset; box-sizing: border-box; width: 100%; display: flex; gap: 8px; padding: 3px 6px; cursor: pointer; border-bottom: 1px dotted var(--t-line); }
+.carte-results button:hover, .carte-results button:focus-visible { background: #1a1200; }
+.carte-res-route { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-amber-dim); }
+.carte-none { padding: 3px 6px; }
