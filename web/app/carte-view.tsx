@@ -8,9 +8,12 @@ import {
 } from '../lib/map-model';
 import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from '../lib/traces';
 import { estimatePosition, segmentSpeedKmh, type Lngl } from '../lib/position';
+import { searchTrains } from '../lib/train-search';
 import { delayTone, type Tone } from '../lib/terminal-model';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
+// Les numéros de train s'affichent à partir de ce zoom (≈ échelle d'une région) ; en dessous, la carte reste lisible.
+const LABEL_MIN_ZOOM = 7;
 const TONE_COLORS: Record<Tone, string> = { ontime: '#3ad13a', late: '#ffd24d', strong: '#ff8c00', severe: '#ff4d4d', cancelled: '#8a8a8a' };
 const TONE_LABELS: Record<Tone, string> = { ontime: 'À L’HEURE', late: 'RETARD', strong: 'FORT RETARD', severe: 'TRÈS FORT RETARD', cancelled: 'ANNULÉ' };
 type MapLibre = typeof import('maplibre-gl');
@@ -49,9 +52,7 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
   const applyTracksRef = useRef<() => void>(() => {});
   const [hasTracks, setHasTracks] = useState(false);
   const [showTracks, setShowTracks] = useState(true);
-  // Filtres dépliés sur grand écran, repliés sur mobile (lu après montage : pas d'écart d'hydratation).
-  const [ctrlOpen, setCtrlOpen] = useState(true);
-  useEffect(() => { if (window.matchMedia('(max-width: 899px)').matches) setCtrlOpen(false); }, []);
+  const [query, setQuery] = useState('');
   const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
   const onSelectRef = useRef(onSelect);
   const onSpeedRef = useRef(onSpeed);
@@ -143,6 +144,11 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
             'circle-stroke-width': 1, 'circle-stroke-color': '#0a0a0a',
           },
         });
+        m.addLayer({
+          id: 'train-numbers', type: 'symbol', source: 'trains', minzoom: LABEL_MIN_ZOOM,
+          layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-anchor': 'left', 'text-offset': [0.9, 0] },
+          paint: { 'text-color': '#ffb000', 'text-halo-color': '#0a0a0a', 'text-halo-width': 1.5, 'text-opacity': ['case', ['get', 'stale'], 0.5, 1] },
+        });
         m.on('click', 'trains', (e) => {
           const id = e.features?.[0]?.properties?.trip_id;
           const t = trainsRef.current.find((x) => x.trip_id === id);
@@ -156,14 +162,19 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
     return () => { cancelled = true; clearInterval(timer); map?.remove(); mapRef.current = null; };
   }, []);
 
-  // Centrage demandé depuis le top des retards : sans position estimée, rien ne se passe.
+  // Centre la carte sur un train (zoom 8 : numéros visibles) et ouvre sa fiche ; sans position estimée, la fiche s'ouvre seule.
+  const focusTrain = (t: LiveItem) => {
+    const e = estimatePosition(t, new Date(), pathRef.current);
+    if (!e || !mapRef.current) { onSelectRef.current(t.trip_id); return; }
+    mapRef.current.flyTo({ center: [e.lon, e.lat], zoom: Math.max(8, mapRef.current.getZoom()) });
+    openPopup(t, [e.lon, e.lat]);
+  };
+
+  // Centrage demandé depuis les listes de la colonne de gauche.
   useEffect(() => {
     if (!focus) return;
     const t = trainsRef.current.find((x) => x.trip_id === focus.trip_id);
-    const e = t ? estimatePosition(t, new Date(), pathRef.current) : null;
-    if (!t || !e || !mapRef.current) return;
-    mapRef.current.flyTo({ center: [e.lon, e.lat], zoom: 8 });
-    openPopup(t, [e.lon, e.lat]);
+    if (t) focusTrain(t);
   }, [focus]);
 
   // Fiche fermée depuis la colonne de droite : l'étiquette disparaît (sans redésélectionner).
@@ -201,6 +212,8 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
   }, []);
 
   const shown = useMemo(() => applyFilters(trains, filters), [trains, filters]);
+  const results = useMemo(() => searchTrains(trains, query), [trains, query]);
+  const pick = (t: LiveItem) => { setQuery(''); focusTrain(t); };
   const moving = useMemo(() => {
     const at = new Date(now);
     return shown.filter((t) => estimatePosition(t, at, pathRef.current)?.state === 'moving').length;
@@ -209,9 +222,25 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
 
   return (
     <section className="carte term-panel" aria-label="Carte des trains en circulation">
-      <details className="carte-ctrl" open={ctrlOpen} onToggle={(e) => setCtrlOpen(e.currentTarget.open)}>
-        <summary>FILTRES</summary>
+      <div className="carte-ctrl">
         <div className="carte-ctrl-row">
+          <form className="carte-search" role="search" onSubmit={(e) => { e.preventDefault(); if (results[0]) pick(results[0]); }}>
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQuery(''); }}
+              placeholder="N° DE TRAIN OU GARE" aria-label="Rechercher un train par numéro, marque ou gare" autoComplete="off" />
+            {query.trim() !== '' && (
+              <ul className="carte-results" aria-label="Résultats">
+                {results.length === 0 ? <li className="term-dim carte-none">AUCUN TRAIN EN CIRCULATION CORRESPONDANT</li> : results.map((t) => (
+                  <li key={t.trip_id}>
+                    <button type="button" onClick={() => pick(t)}>
+                      <span>{t.brand === 'OUIGO' ? 'OG' : 'IN'} {t.train_number}</span>
+                      <span className="carte-res-route">{[t.origin, t.dest].filter(Boolean).join(' → ')}</span>
+                      <span className={`tone-${delayTone(t.delay_s, t.cancelled)}`}>{t.cancelled ? 'ANNULÉ' : (t.delay_s ?? 0) >= 300 ? `+${Math.round((t.delay_s ?? 0) / 60)}′` : ''}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </form>
           <label>MARQUE
             <select autoComplete="off" value={filters.brand} onChange={(e) => setFilters({ ...filters, brand: e.target.value as Filters['brand'] })}>
               <option value="ALL">TOUTES</option><option value="INOUI">INOUI</option><option value="OUIGO">OUIGO</option>
@@ -229,7 +258,7 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
             </label>
           )}
         </div>
-      </details>
+      </div>
       <div ref={container} className="carte-map" />
       {overlay}
       {failed && (
