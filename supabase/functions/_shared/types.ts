@@ -30,6 +30,7 @@ export interface PlannedStopTimes {
   arrPlanned: Record<string, string>
   depPlanned: Record<string, string>
   stopSeqById: Record<string, number>
+  observed?: boolean // une ligne circulations existe déjà pour ce trip_id
 }
 
 // Équivaut à ReturnType<typeof transit_realtime.FeedMessage.toObject> (protobufjs type toObject

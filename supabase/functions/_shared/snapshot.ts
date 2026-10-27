@@ -50,12 +50,16 @@ export const baseTripId = (tripId: string) => tripId.replace(/:[0-9]{8}$/, '')
 // Jointure exacte d'abord, sinon sur baseTripId ; l'instantané porte le trip_id planifié.
 // Un seul instantané par trajet planifié : exact > base, puis trip_update.timestamp le plus récent,
 // puis trip_id RT le plus petit. Entre deux variantes planifiées de même base : le trip_id le plus petit.
+// Une variante déjà observée l'emporte sur tout : un réimport du statique en cours de journée
+// ne doit pas ouvrir une seconde ligne circulations pour le même train.
 export function snapshotsFromFeed(feed: DecodedFeed, alerts: DecodedFeed, planned: Map<string, PlannedStopTimes>): TripSnapshot[] {
   const byTrip = alertsByTrip(alerts, Number(feed.header?.timestamp))
   const byBase = new Map<string, PlannedStopTimes>()
+  const seenByBase = new Map<string, PlannedStopTimes>()
   for (const p of [...planned.values()].sort((a, b) => (a.tripId < b.tripId ? -1 : 1))) {
     const k = `${p.serviceDate}|${baseTripId(p.tripId)}`
     if (!byBase.has(k)) byBase.set(k, p)
+    if (p.observed && !seenByBase.has(k)) seenByBase.set(k, p)
   }
   type Pick = { snap: TripSnapshot; exact: boolean; ts: number; rtTripId: string }
   const better = (a: Pick, b: Pick) =>
@@ -68,7 +72,8 @@ export function snapshotsFromFeed(feed: DecodedFeed, alerts: DecodedFeed, planne
     const serviceDate = serviceDateOf(tu.trip.startDate)
     const rtTripId: string = tu.trip.tripId
     const exactP = planned.get(`${serviceDate}|${rtTripId}`)
-    const p = exactP ?? byBase.get(`${serviceDate}|${baseTripId(rtTripId)}`)
+    const base = `${serviceDate}|${baseTripId(rtTripId)}`
+    const p = seenByBase.get(base) ?? exactP ?? byBase.get(base)
     if (!p) continue
     const tripId = p.tripId
     const stopDelays: TripSnapshot['stopDelays'] = {}
@@ -85,7 +90,7 @@ export function snapshotsFromFeed(feed: DecodedFeed, alerts: DecodedFeed, planne
     const alertIds = [...new Set([...(byTrip.get(rtTripId) ?? []), ...(byTrip.get(tripId) ?? []), ...(byTrip.get(shortId(rtTripId)) ?? [])])]
     const pick: Pick = {
       snap: { serviceDate, tripId, cancelled: tu.trip.scheduleRelationship === CANCELED, stopDelays, alertIds },
-      exact: exactP !== undefined, ts: Number(tu.timestamp ?? 0), rtTripId,
+      exact: p === exactP, ts: Number(tu.timestamp ?? 0), rtTripId,
     }
     const key = `${serviceDate}|${tripId}`
     const cur = picks.get(key)
@@ -124,7 +129,7 @@ export interface TripContext {
 }
 
 export function plannedOf(c: TripContext): PlannedStopTimes {
-  const p: PlannedStopTimes = { serviceDate: c.service_date, tripId: c.trip_id, arrPlanned: {}, depPlanned: {}, stopSeqById: {} }
+  const p: PlannedStopTimes = { serviceDate: c.service_date, tripId: c.trip_id, arrPlanned: {}, depPlanned: {}, stopSeqById: {}, observed: c.circ !== null }
   for (const s of c.stops) {
     const k = String(s.stop_sequence)
     if (s.arr_planned) p.arrPlanned[k] = s.arr_planned
