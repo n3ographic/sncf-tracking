@@ -33,7 +33,7 @@ export function isStale(t: Pick<LiveItem, 'last_seen_at'>, now: Date): boolean {
   return !Number.isFinite(seen) || now.getTime() - seen > STALE_S * 1000;
 }
 
-type Props = { trip_id: string; cls: DelayClass; stale: boolean; state: PositionState };
+type Props = { trip_id: string; cls: DelayClass; stale: boolean; state: PositionState; label: string };
 
 export type PointFeature = { type: 'Feature'; geometry: { type: 'Point'; coordinates: [number, number] }; properties: Props };
 export type PointCollection = { type: 'FeatureCollection'; features: PointFeature[] };
@@ -46,7 +46,7 @@ export function toFeatureCollection(trains: LiveItem[], now: Date, path?: (a: Ln
     features.push({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [e.lon, e.lat] },
-      properties: { trip_id: t.trip_id, cls: delayClass(t), stale: isStale(t, now), state: e.state },
+      properties: { trip_id: t.trip_id, cls: delayClass(t), stale: isStale(t, now), state: e.state, label: t.train_number },
     });
   }
   return { type: 'FeatureCollection', features };
