@@ -7,9 +7,11 @@
 .carte-ctrl input[type='checkbox'] { accent-color: var(--t-amber); }
 .carte-count { margin: 0; padding: 4px 8px; border-top: 1px solid var(--t-line); font-size: 12px; }
 .carte-banner { position: absolute; top: 40px; left: 8px; right: 8px; margin: 0; padding: 4px 8px; background: #1f0606; color: var(--t-severe); border: 1px solid var(--t-severe); font-size: 12px; z-index: 2; }
-.maplibregl-popup-content { background: var(--t-panel); color: var(--t-amber); border: 1px solid var(--t-amber); border-radius: 0; padding: 8px 10px; font-family: var(--font-term), monospace; }
+.maplibregl-popup-content { background: var(--t-panel); color: var(--t-amber); border: 1px solid var(--t-amber); border-radius: 0; padding: 8px 28px 8px 10px; font-family: var(--font-term), monospace; }
 .maplibregl-popup-tip { border-top-color: var(--t-amber) !important; border-bottom-color: var(--t-amber) !important; }
-.maplibregl-popup-close-button { color: var(--t-amber); }
+/* La croix a sa propre colonne à droite : elle ne recouvre plus le numéro du train. */
+.maplibregl-popup-close-button { color: var(--t-amber); top: 4px; right: 4px; width: 18px; height: 18px; padding: 0; font-size: 16px; line-height: 16px; }
+.maplibregl-popup-close-button:focus-visible { outline-offset: 0; }
 .popup p { margin: 0 0 4px; font-size: 12px; }
 .popup .popup-title { color: #000; background: var(--t-amber); display: inline-block; padding: 0 4px; font-weight: 600; }
 .popup .popup-cause, .popup .popup-note { color: var(--t-amber-dim); font-size: 11px; }
