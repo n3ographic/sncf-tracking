@@ -41,7 +41,7 @@ export default function RightPanel({ cumul, cumulFailed, stats, statsFailed, sta
           <>
             <p className="big">{nf(Math.round(cumul.cost_eur_ht))} €</p>
             {cumulRange && <p className="term-dim" title={RANGE_HINT}>FOURCHETTE {cumulRange} HT</p>}
-            <p className="term-dim">HT · {nf(cumul.observed)} TRAINS OBS. · COUV {cumul.coverage_pct === null ? '—' : `${cumul.coverage_pct.toLocaleString('fr-FR')} %`}</p>
+            <p className="term-dim">HT · {nf(cumul.observed)} TRAINS OBS. · <span title="Part des trains prévus observés dans le flux temps réel, jours terminés depuis le 20 octobre 2026">{cumul.coverage_pct === null ? '—' : `${cumul.coverage_pct.toLocaleString('fr-FR')} %`} DU PRÉVU</span></p>
             {cumul.by_brand.map((b) => <p key={b.brand}>{b.brand} {nf(Math.round(b.cost_eur_ht))} €</p>)}
             <p className="term-dim">OBSERVÉ SEULEMENT, SANS EXTRAPOLATION · DEPUIS LE 20/10</p>
           </>

@@ -76,7 +76,7 @@ export default async function Page() {
           <dt>Observé / jamais observé</dt><dd>Observé : le train est apparu dans le flux temps réel. Jamais observé : prévu mais jamais vu (collecte absente ou train non publié).</dd>
           <dt>Retiré tard, annulé</dt><dd>Retiré tard : retiré du plan après avoir été prévu. Annulé : suppression publiée dans le flux.</dd>
           <dt>Sans terminus</dt><dd>Train observé dont le retard au terminus n’est pas connu.</dd>
-          <dt>Couverture (COUV)</dt><dd>Part des trains prévus (un par numéro et par jour, jours terminés depuis le 20 octobre 2026) qui ont été observés dans le flux temps réel ; c’est la couverture du compteur cumulé.</dd>
+          <dt>Observés depuis le 20/10 (couverture)</dt><dd>Part des trains prévus (un par numéro et par jour, jours terminés depuis le 20 octobre 2026) qui ont été observés dans le flux temps réel ; c’est la couverture du compteur cumulé, affichée dans la barre d’état (« OBS. DEPUIS 20/10 ») et sous le compteur (« % DU PRÉVU »).</dd>
           <dt>Ayant circulé</dt><dd>Train observé, non annulé, dont le retard au terminus est connu. C’est l’effectif de tous les pourcentages.</dd>
         </dl>
         <h3>Régularité officielle</h3>
