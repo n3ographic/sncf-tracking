@@ -3,6 +3,7 @@ export const CAUSE_LABELS: Record<string, { short: string; long: string }> = {
   enchainement: { short: 'ENCHAÎNEMENT', long: 'Enchaînement (retard venu d’un trajet précédent, d’un équipage ou d’une correspondance)' },
   meteo: { short: 'MÉTÉO', long: 'Météo et végétation' },
   obstacle: { short: 'OBSTACLE / ANIMAL', long: 'Obstacle, animal, choc' },
+  degradation: { short: 'DÉGRADATION', long: 'Dégradation et malveillance (vol de câbles, vandalisme)' },
   voyageurs_surete: { short: 'VOYAGEURS / SÛRETÉ', long: 'Voyageurs et sûreté' },
   infrastructure: { short: 'INFRASTRUCTURE', long: 'Infrastructure et travaux' },
   materiel: { short: 'MATÉRIEL', long: 'Matériel et préparation du train' },
