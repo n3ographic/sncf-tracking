@@ -143,6 +143,19 @@ export default async function Page() {
             </div>
           </>
         ) : <Unavailable />}
+        <h3>Prix de référence : année et évolution</h3>
+        <p>Les prix de référence sont ceux de <strong>2023</strong>, hors taxes, tels que les compile la{' '}
+          <Link href="https://www.fnaut.fr/uploads/2025/12/chiffres-cles.2electure-docx.pdf">FNAUT d’après les données de l’ART</Link> (communiqué du 15 décembre 2025) :
+          ce sont les chiffres les plus récents trouvés pour les deux marques avec une même source et une même année.
+          Le jeu ouvert « Tarifs TGV INOUI et OUIGO » de data.gouv.fr n’est pas utilisé : il donne des fourchettes minimum-maximum par liaison, pas un prix moyen payé.</p>
+        <p>Depuis 2023, les évolutions connues sont faibles :
+          SNCF Voyageurs a annoncé <strong>+1 % en moyenne en 2026</strong>, sous l’inflation prévue de 1,3 %
+          (<Link href="https://www.sncf-voyageurs.com/fr/presse/en-2026-levolution-des-prix-des-tgv-inoui-et-ouigo-sera-limitee-en-dessous-de-linflation/">communiqué du 30 décembre 2025</Link>) ;
+          pour OUIGO, la presse relaie une donnée de l’ART de <strong>34,70 € en 2024</strong>, soit +1,5 % sur 2023
+          (<Link href="https://www.lechotouristique.com/article/sncf-selon-la-fnaut-le-prix-moyen-des-ouigo-aurait-grimpe-de-75-en-7-ans">L’Écho touristique</Link>, source secondaire que nous n’avons pas pu vérifier à la source).
+          Aucun chiffre comparable n’existe pour INOUI, ni pour 2025.</p>
+        <p>Nous gardons donc les prix de 2023 pour les deux marques, sans les indexer : un coefficient par année et par marque ne reposerait sur aucune source.
+          Les prix actuels étant probablement un peu plus élevés, les montants d’indemnités affichés sont <strong>légèrement sous-estimés</strong>. Ils sont proportionnels au prix de référence.</p>
         <h3>Compteur cumulé</h3>
         <p>Le compteur de la carte et du tableau de bord additionne les indemnités théoriques depuis le 20 octobre 2026, jour par jour : chaque jour de service terminé est enregistré une fois, puis recalculé le lendemain pour rattraper les trains terminés tard.
           Il ne compte que les trains <strong>observés</strong> dans le flux temps réel et n’extrapole jamais aux trains non observés : il sous-estime donc la réalité tant que la couverture (part des trains prévus effectivement observés) est faible. La couverture est toujours affichée à côté du chiffre.</p>
