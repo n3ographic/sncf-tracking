@@ -71,10 +71,12 @@ export default async function Page() {
       <section>
         <h2>Définitions</h2>
         <dl>
+          <dt>Train</dt><dd>Un train est identifié par son numéro et son jour de service ; les variantes de l’horaire créées par les réimports ne comptent qu’une fois (la circulation retenue est la plus récemment vue).</dd>
           <dt>Prévu</dt><dd>Train du plan de transport (GTFS statique) pour un jour de service.</dd>
           <dt>Observé / jamais observé</dt><dd>Observé : le train est apparu dans le flux temps réel. Jamais observé : prévu mais jamais vu (collecte absente ou train non publié).</dd>
           <dt>Retiré tard, annulé</dt><dd>Retiré tard : retiré du plan après avoir été prévu. Annulé : suppression publiée dans le flux.</dd>
           <dt>Sans terminus</dt><dd>Train observé dont le retard au terminus n’est pas connu.</dd>
+          <dt>Couverture (COUV)</dt><dd>Part des trains prévus (un par numéro et par jour, jours terminés depuis le 20 octobre 2026) qui ont été observés dans le flux temps réel ; c’est la couverture du compteur cumulé.</dd>
           <dt>Ayant circulé</dt><dd>Train observé, non annulé, dont le retard au terminus est connu. C’est l’effectif de tous les pourcentages.</dd>
         </dl>
         <h3>Régularité officielle</h3>
