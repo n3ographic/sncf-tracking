@@ -131,6 +131,23 @@ describe('dérive du trip_id (dernier segment :AAAAMMJJ)', () => {
     }
   })
 
+  it('réimport en cours de journée : la variante déjà observée garde la circulation', () => {
+    // Le statique remplace ':20261115' par ':20261117' ; le flux RT suit la nouvelle variante.
+    const next = T5537.replace(/:\d{8}$/, ':20261117')
+    const ctxs = afterFirstRun()
+    ctxs.set(`${DATE}|${next}`, { ...ctx(T5537), trip_id: next })
+    const p = new Map([...ctxs].map(([k, c]) => [k, plannedOf(c)]))
+    const feed = structuredClone(tu)
+    feed.entity[0].tripUpdate.trip.tripId = next
+    ;(feed.entity[0].tripUpdate.stopTimeUpdate.at(-1) as any).arrival.delay = 4500
+    const snaps = snapshotsFromFeed(feed, sa, p)
+    expect(snaps.map((s) => s.tripId)).not.toContain(next)
+    const { events, circulations } = collectChanges(snaps, ctxs, alertTexts(sa), OBS, NOW)
+    expect(circulations.map((c) => c.trip_id)).not.toContain(next)
+    expect(by(circulations, T5537).terminus_delay_s).toBe(4500)
+    expect(events.filter((e) => e.kind === 'first_seen')).toEqual([])
+  })
+
   it('le préfixe seul ne suffit pas : un autre trajet reste ignoré', () => {
     const feed = drifted()
     feed.entity[0].tripUpdate.trip.tripId = T5537.replace(':18:2243:', ':18:2244:')
