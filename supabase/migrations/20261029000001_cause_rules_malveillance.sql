@@ -1,9 +1,9 @@
--- Règles de cause complétées (textes restés en « autre » jusqu'au 27/10/2026) et catégorie « degradation »
+-- Règles de cause complétées (textes restés en « autre » jusqu'au 27/10/2026) et catégorie « malveillance »
 -- (vol, vandalisme, malveillance, signal d'alarme tiré abusivement). Données seules : relancer snapshot_day
 -- sur les jours concernés pour daily_stats.
 
 insert into public.cause_rules (priority, category, pattern, note) values
-  (45, 'degradation', '\m(vandalisme|malveillance|dégradations?|abusif|abusive|abusivement)\M|vols? de (câbles?|cuivre)',
+  (45, 'malveillance', '\m(vandalisme|malveillance|dégradations?|abusif|abusive|abusivement)\M|vols? de (câbles?|cuivre)',
    'après météo : « dégradation des conditions météo » reste météo ; avant voyageurs : alarme abusive ici, alarme seule en voyageurs');
 
 update public.cause_rules set pattern = pattern || '|mission précédente|train précédent|attente de personnel' where category = 'enchainement';

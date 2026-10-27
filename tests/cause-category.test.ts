@@ -28,8 +28,8 @@ test.each([
   ['Cause : orage violent à RENNES.', 'meteo'],
   ['Gare de Tourcoing : texte sans rapport connu', 'autre'],
   // Textes réels restés en « autre » jusqu'au 27/10/2026.
-  ['Cause : un vol de câbles entraîne des perturbations sur la circulation des trains à REIMS.', 'degradation'],
-  ['Cause : acte de vandalisme sur les installations à LYON.', 'degradation'],
+  ['Cause : un vol de câbles entraîne des perturbations sur la circulation des trains à REIMS.', 'malveillance'],
+  ['Cause : acte de vandalisme sur les installations à LYON.', 'malveillance'],
   ['Cause : des manifestants ont été aperçus sur les voies à PERPIGNAN.', 'voyageurs_surete'],
   ['Cause : Attente de personnel indispensable à votre train à LYON PART DIEU.', 'enchainement'],
   ["La mission précédente de votre train a été retardé par une interruption des circulations du fait de la présence de manifestants dans les voies.", 'enchainement'],
@@ -39,7 +39,7 @@ test.each([
   ['Votre train est retardé. Cause : votre conducteur a procédé à une vérification technique et a pu reprendre ensuite sa circulation à TOUTRY.', 'materiel'],
   ["Les équipes du gestionnaire du réseau ferré sont en cours d'intervention. Cause : panne du système informatique à MODANE.", 'infrastructure'],
   ['Votre TGV INOUI a quitté la gare avec du retard. Ce retard était dû à des conditions de départ non réunies avant la mise en circulation du train.', 'exploitation'],
-  ["Cause : signal d'alarme tiré abusivement entre TOULON et MARSEILLE SAINT CHARLES.", 'degradation'],
+  ["Cause : signal d'alarme tiré abusivement entre TOULON et MARSEILLE SAINT CHARLES.", 'malveillance'],
   ["Cause : un voyageur a actionné un signal d'alarme à bord d'un train à AGEN.", 'voyageurs_surete'],
   // « dégradation » de la météo reste de la météo (règle météo prioritaire).
   ['Cause : dégradation des conditions météorologiques à BREST.', 'meteo'],
