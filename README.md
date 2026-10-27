@@ -108,6 +108,7 @@ Les règles vivent en base (tables `regularity_rule`, `compensation_scale`, `ref
 - **Train terminé** : annulé, ou arrivée prévue + retard au terminus + 30 min dépassée. Seuls les trains terminés entrent dans `/api/stats`.
 - **Pas de 5 minutes** : les retards du flux GTFS-RT sont tous des multiples de 5 min. « À l'heure » sous 5 min équivaut donc à un retard publié de 0, la tranche `1-4` reste vide et le seuil INOUI n'est franchi qu'à 35 min publiées ; le sens de l'arrondi est inconnu. La régularité calculée est une approximation, à calibrer sur la régularité officielle mensuelle : ne pas la comparer aux chiffres officiels avant ce calibrage.
 - **Taille du cache de données** : Next.js n'y garde que des éléments de 2 Mo au plus ; la réponse brute de `/api/live` fait environ 350 Ko aujourd'hui, à garder très en dessous (allègement du plan 3).
+- **Un train par numéro et par jour** : les variantes de l'horaire (même numéro, autre `trip_id`) créées par les réimports ne comptent qu'une fois ; vues `canonical_trips` et `canonical_circulations` (circulation retenue : la plus récemment vue).
 - **Couverture** : la collecte a commencé le 2026-10-20 à 22 h 07 (heure de Paris) ; ce jour de service n'est couvert que partiellement, et toute panne du collecteur en ferait autant. `never_observed` (trajets prévus jamais vus dans le flux) rend la couverture visible.
 
 ### Coûts et configuration

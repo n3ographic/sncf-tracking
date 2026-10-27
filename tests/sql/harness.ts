@@ -19,6 +19,7 @@ export const MIGRATIONS_UNDER_TEST = [
   '20261022000003_live_trains_window.sql',
   '20261026000001_aberrant_and_range.sql',
   '20261027000001_cause_categories.sql',
+  '20261028000001_canonical_trains.sql',
 ]
 
 const BOOTSTRAP = `
