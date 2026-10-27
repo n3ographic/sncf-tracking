@@ -12,8 +12,9 @@ import { searchTrains } from '../lib/train-search';
 import { delayTone, type Tone } from '../lib/terminal-model';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
-// Les numéros de train s'affichent à partir de ce zoom (≈ échelle d'une région) ; en dessous, la carte reste lisible.
-const LABEL_MIN_ZOOM = 7;
+// Les numéros de train s'affichent à partir de ce zoom ; en dessous, la carte reste lisible.
+// Repères : 5 = France entière (vue de départ), 6 = un grand quart de la France, 7 = une région, 8 = un département.
+const LABEL_MIN_ZOOM = 6;
 const TONE_COLORS: Record<Tone, string> = { ontime: '#3ad13a', late: '#ffd24d', strong: '#ff8c00', severe: '#ff4d4d', cancelled: '#8a8a8a' };
 const TONE_LABELS: Record<Tone, string> = { ontime: 'À L’HEURE', late: 'RETARD', strong: 'FORT RETARD', severe: 'TRÈS FORT RETARD', cancelled: 'ANNULÉ' };
 type MapLibre = typeof import('maplibre-gl');
