@@ -82,3 +82,24 @@ test('anon lit stats_period à travers les vues', async () => {
   await seed(trip('A:1', 'A', { terminusDelayS: 0 }))
   await expect(asAnon(db, () => db.query("select count(*) from public.stats_period('2026-11-01', '2026-11-01', $1)", [NOW]))).resolves.toBeTruthy()
 })
+
+const LIVE_NOW = '2026-11-02T12:00:00Z'
+const LIVE_STOPS: NonNullable<SeedTrip['stops']> = [
+  { seq: 1, stopId: 'PLY', name: 'Paris Gare de Lyon', lat: 48.844, lon: 2.374, arr: '2026-11-02T11:00:00Z', dep: '2026-11-02T11:00:00Z' },
+  { seq: 2, stopId: 'LYD', name: 'Lyon Part-Dieu', lat: 45.760, lon: 4.859, arr: '2026-11-02T11:55:00Z', dep: '2026-11-02T11:58:00Z' },
+  { seq: 3, stopId: 'MSC', name: 'Marseille Saint-Charles', lat: 43.302, lon: 5.380, arr: '2026-11-02T12:30:00Z', dep: '2026-11-02T12:30:00Z' },
+]
+const liveTrip = (tripId: string, circulation: SeedTrip['circulation'], extra: Partial<SeedTrip> = {}): SeedTrip => ({
+  serviceDate: '2026-11-02', tripId, brand: 'INOUI', axis: 'SUD_EST', trainNumber: 'L',
+  dep: '2026-11-02T11:00:00Z', arr: '2026-11-02T12:30:00Z', circulation, stops: LIVE_STOPS, ...extra,
+})
+
+test('live_trains : un numéro à deux variantes ne sort qu’une fois, avec la copie vue en dernier', async () => {
+  await seed(
+    liveTrip('L:1', { terminusDelayS: 300, stopDelays: { '1': 300 }, lastSeenAt: '2026-11-02T11:20:00Z' }, { removedAt: '2026-11-02T11:21:00Z' }),
+    liveTrip('L:2', { terminusDelayS: 600, stopDelays: { '1': 600 }, lastSeenAt: '2026-11-02T11:58:00Z' }),
+  )
+  const live = (await db.query<{ j: { trip_id: string; train_number: string; delay_s?: number }[] }>('select public.live_trains($1) as j', [LIVE_NOW])).rows[0].j
+  expect(live.filter((t) => t.train_number === 'L').map((t) => [t.trip_id, t.delay_s])).toEqual([['L:2', 600]])
+  await expect(asAnon(db, () => db.query('select public.live_trains($1)', [LIVE_NOW]))).resolves.toBeTruthy()
+})
