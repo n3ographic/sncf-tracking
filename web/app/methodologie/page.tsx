@@ -198,7 +198,7 @@ export default async function Page() {
           <li>Les retards du flux vont par pas de 5 minutes (aucun retard publié entre 1 et 4 minutes). « À l’heure » équivaut à un retard publié de 0 ; la régularité calculée est une approximation de la régularité officielle, à calibrer avant toute comparaison. Les indemnités en dépendent aux seuils de 30 minutes et de 3 heures : d’où la fourchette.</li>
           <li>Les trains absents du plan du jour ne sont pas collectés.</li>
           <li>Les chiffres reposant sur moins de 30 trains ayant circulé sont estompés : ils ne permettent pas de conclure.</li>
-          <li>Les causes de retard ne sont pas encore agrégées.</li>
+          <li>Le retard est celui du terminus du train : un voyageur qui descend avant a pu arriver avec un autre retard, et son indemnité aussi.</li>
           <li>Quelques gares n’ont pas de tracé (hors réseau du jeu de formes) : les trains y avancent en ligne droite.</li>
         </ul>
       </section>

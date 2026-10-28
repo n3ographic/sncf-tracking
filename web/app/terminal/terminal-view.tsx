@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CarteView, { type Focus } from '../carte-view';
 import type { Cumul } from '../../lib/cumul';
+import { latest } from '../../lib/latest';
 import type { LiveItem } from '../../lib/map-model';
 import type { StatsPayload } from '../../lib/stats';
 import { collectStatus, periodQuery, tickerItems, type Period } from '../../lib/terminal-model';
@@ -29,7 +30,7 @@ export default function TerminalView() {
   const [statsFailed, setStatsFailed] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('7d');
-  const statsSeq = useRef(0);
+  const statsLatest = useRef(latest());
   const [focus, setFocus] = useState<Focus>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [speed, setSpeed] = useState<number | null>(null);
@@ -71,18 +72,18 @@ export default function TerminalView() {
 
   // Seule la dernière période demandée écrit l'état : une réponse arrivée trop tard est ignorée.
   const loadStats = useCallback(async (p: Period) => {
-    const mine = ++statsSeq.current;
+    const isLatest = statsLatest.current();
     setStatsLoading(true);
     setStatsFailed(false);
     try {
       const r = await fetch(`/api/stats?${periodQuery(p)}`);
       const d = (await r.json()) as StatsPayload;
       if (!r.ok || !Array.isArray(d.groups) || !d.totals) throw new Error(String(r.status));
-      if (mine === statsSeq.current) setStats(d);
+      if (isLatest()) setStats(d);
     } catch {
-      if (mine === statsSeq.current) setStatsFailed(true);
+      if (isLatest()) setStatsFailed(true);
     } finally {
-      if (mine === statsSeq.current) setStatsLoading(false);
+      if (isLatest()) setStatsLoading(false);
     }
   }, []);
   useEffect(() => { loadStats(period); }, [period, loadStats]);
