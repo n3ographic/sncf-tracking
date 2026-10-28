@@ -268,7 +268,7 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
         </p>
       )}
       <p className="carte-count" aria-live="polite">
-        {shown.length} TRAINS · {moving} EN ROUTE · <span className="tone-strong">{lateCount(shown)} EN RETARD</span>
+        {failed && trains.length === 0 ? 'AUCUNE DONNÉE' : <>{shown.length} TRAINS · {moving} EN ROUTE · <span className="tone-strong">{lateCount(shown)} EN RETARD</span></>}
       </p>
     </section>
   );
