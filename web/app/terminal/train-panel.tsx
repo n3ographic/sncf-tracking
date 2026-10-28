@@ -1,7 +1,11 @@
 import { TERMINUS_BUCKETS } from '../../lib/dashboard-model';
 import { isStale, type LiveItem } from '../../lib/map-model';
 import { bucketIndex, delayTone } from '../../lib/terminal-model';
+import { segmentDelayGrowthS } from '../../lib/position';
 import { compensationView, delayBounds, observedAgo, speedView, thresholdProgress, type Rules } from '../../lib/train-card';
+
+// Retard annoncé en plus sur le tronçon à partir duquel la vitesse prévue n'est plus celle du train.
+const GROWTH_WARN_S = 600;
 
 const eur = (n: number) => n.toFixed(2).replace('.', ',');
 const range = (lo: number, hi: number, fmt: (n: number) => string) => (lo === hi ? fmt(hi) : `${fmt(lo)} À ${fmt(hi)}`);
@@ -30,6 +34,7 @@ export default function TrainPanel({ train: t, rules, speed, onClose }: {
   const prog = !t.cancelled && rules ? thresholdProgress(t.brand, t.delay_s, rules) : null;
   const ago = observedAgo(t.last_seen_at, now);
   const sv = speedView(speed);
+  const growth = segmentDelayGrowthS(t, now);
   return shell(`${t.brand} ${t.train_number}`, (
     <>
       {t.origin && t.dest && <p>{t.origin} → {t.dest}</p>}
@@ -61,7 +66,8 @@ export default function TrainPanel({ train: t, rules, speed, onClose }: {
       )}
       <section className="train-block">
         <h3>Mesure</h3>
-        <p>VITESSE {sv.kind === 'none' ? <span className="term-dim">— (À L’ARRÊT OU INCONNUE)</span> : sv.kind === 'short' ? <span className="term-dim">— (TRONÇON COURT, MOYENNE NON SIGNIFICATIVE)</span> : <>≈ {sv.kmh} KM/H <span className="term-dim">MOYENNE DU TRONÇON</span></>}</p>
+        <p>VITESSE {sv.kind === 'none' ? <span className="term-dim">— (À L’ARRÊT OU INCONNUE)</span> : sv.kind === 'short' ? <span className="term-dim">— (TRONÇON COURT, MOYENNE NON SIGNIFICATIVE)</span> : <>≈ {sv.kmh} KM/H <span className="term-dim">PRÉVUS SUR LE TRONÇON</span></>}</p>
+        {growth !== null && growth >= GROWTH_WARN_S && <p className="tone-late">+{Math.round(growth / 60)}′ ANNONCÉS AVANT LE PROCHAIN ARRÊT : LE TRAIN NE ROULE PROBABLEMENT PAS À CETTE VITESSE</p>}
         <p>OBSERVÉ {ago === null ? '—' : ago === 0 ? 'À L’INSTANT' : `IL Y A ${ago} MIN`} <span className="term-dim">· POSITION ESTIMÉE</span></p>
         {isStale(t, now) && <p className="tone-late">DONNÉE PÉRIMÉE : TRAIN NON VU RÉCEMMENT</p>}
       </section>
