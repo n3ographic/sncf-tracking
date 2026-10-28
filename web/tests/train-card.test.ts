@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { compensationView, delayBounds, observedAgo, thresholdProgress, type Rules } from '../lib/train-card';
+import { compensationView, delayBounds, observedAgo, speedView, thresholdProgress, type Rules } from '../lib/train-card';
 
 const rules: Rules = {
   compensation_scale: [
@@ -49,4 +49,12 @@ test('thresholdProgress : avancement du retard entre le palier en cours et le pr
   expect(thresholdProgress('INOUI', 9000, rules)).toBeNull(); // dernier palier
   expect(thresholdProgress('INOUI', undefined, rules)).toEqual({ from_s: 0, to_s: 1860, ratio: 0 });
   expect(thresholdProgress('AUTRE', 100, rules)).toBeNull(); // marque sans barème
+});
+
+test('speedView : sous 60 km/h la moyenne d’un tronçon court n’est pas une vitesse de TGV', () => {
+  expect(speedView(null)).toEqual({ kind: 'none' });
+  expect(speedView(27)).toEqual({ kind: 'short' });
+  expect(speedView(59.9)).toEqual({ kind: 'short' });
+  expect(speedView(60)).toEqual({ kind: 'speed', kmh: 60 });
+  expect(speedView(212.4)).toEqual({ kind: 'speed', kmh: 212 });
 });

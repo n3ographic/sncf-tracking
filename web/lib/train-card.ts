@@ -46,3 +46,13 @@ export function thresholdProgress(brand: string, delay_s: number | undefined, ru
   const from_s = marks.filter((m) => m <= d).pop() ?? 0;
   return { from_s, to_s, ratio: (d - from_s) / (to_s - from_s) };
 }
+
+// Sous ce seuil, la moyenne d'un tronçon (approches urbaines, ex. Lyon Part-Dieu → Perrache : 5 km en 8 à 12 min)
+// n'est pas une vitesse de TGV : on ne l'affiche pas comme telle.
+export const MIN_SPEED_KMH = 60;
+
+export type SpeedView = { kind: 'none' } | { kind: 'short' } | { kind: 'speed'; kmh: number };
+export function speedView(speed: number | null): SpeedView {
+  if (speed === null) return { kind: 'none' };
+  return speed < MIN_SPEED_KMH ? { kind: 'short' } : { kind: 'speed', kmh: Math.round(speed) };
+}
