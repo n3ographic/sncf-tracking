@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { estimatePosition, segmentDelayGrowthS, segmentSpeedKmh, type Lngl } from '../lib/position';
+import { estimatePosition, segmentProgress, segmentSpeedKmh, type Lngl } from '../lib/position';
 import type { LiveStop } from '../lib/live';
 
 const A: LiveStop = { seq: 1, lon: 2, lat: 48, dep: '2026-11-02T11:00:00Z' };
@@ -127,11 +127,11 @@ test('vitesse du tronçon : un retard qui grossit sur le tronçon ne le ralentit
   expect(segmentSpeedKmh(grows, at('11:30'))).toBeCloseTo(base, 6);
 });
 
-test('segmentDelayGrowthS : retard annoncé en plus entre le départ et le prochain arrêt', () => {
-  const grows = train([{ ...A, delay_s: 0 }, { ...B, delay_s: 3600 }], 0);
-  expect(segmentDelayGrowthS(grows, at('11:30'))).toBe(3600);
-  expect(segmentDelayGrowthS(train([A, B], 600), at('11:40'))).toBe(0); // même retard aux deux bouts
-  expect(segmentDelayGrowthS(train([{ ...A, delay_s: 900 }, { ...B, delay_s: 300 }], 0), at('11:30'))).toBe(-600); // rattrapage
-  expect(segmentDelayGrowthS(grows, at('10:50'))).toBeNull(); // à l'arrêt
-  expect(segmentDelayGrowthS(train([A, B], 0, true), at('11:30'))).toBeNull(); // supprimé
+test('segmentProgress : temps depuis le départ, jusqu’à l’arrivée, et retard annoncé en plus sur le tronçon', () => {
+  const grows = train([{ ...A, name: 'Lyon', delay_s: 0 }, { ...B, name: 'Paris', delay_s: 3600 }], 0);
+  expect(segmentProgress(grows, at('11:30'))).toEqual({ from: 'Lyon', to: 'Paris', sinceDepS: 1800, toArrS: 5400, growthS: 3600 });
+  expect(segmentProgress(train([A, B], 600), at('11:40'))!.growthS).toBe(0); // même retard aux deux bouts
+  expect(segmentProgress(train([{ ...A, delay_s: 900 }, { ...B, delay_s: 300 }], 0), at('11:30'))!.growthS).toBe(-600); // rattrapage
+  expect(segmentProgress(grows, at('10:50'))).toBeNull(); // à l'arrêt
+  expect(segmentProgress(train([A, B], 0, true), at('11:30'))).toBeNull(); // supprimé
 });

@@ -55,6 +55,16 @@ test('speedView : sous 60 km/h la moyenne d’un tronçon court n’est pas une 
   expect(speedView(null)).toEqual({ kind: 'none' });
   expect(speedView(27)).toEqual({ kind: 'short' });
   expect(speedView(59.9)).toEqual({ kind: 'short' });
-  expect(speedView(60)).toEqual({ kind: 'speed', kmh: 60 });
-  expect(speedView(212.4)).toEqual({ kind: 'speed', kmh: 212 });
+  expect(speedView(60)).toEqual({ kind: 'speed', kmh: 60, rising: false });
+  expect(speedView(212.4)).toEqual({ kind: 'speed', kmh: 212, rising: false });
+});
+
+test('speedView : pas de vitesse à moins de 3 min d’un arrêt (freinage, démarrage), retard en hausse sur la même ligne', () => {
+  const p = (sinceDepS: number, toArrS: number, growthS = 0) => ({ from: 'Lyon', to: 'Paris', sinceDepS, toArrS, growthS });
+  expect(speedView(237, p(1800, 120))).toEqual({ kind: 'approach', stop: 'Paris' });
+  expect(speedView(237, p(60, 3000))).toEqual({ kind: 'departure', stop: 'Lyon' });
+  expect(speedView(237, p(1800, 1800))).toEqual({ kind: 'speed', kmh: 237, rising: false });
+  expect(speedView(237, p(1800, 1800, 600))).toEqual({ kind: 'speed', kmh: 237, rising: true });
+  expect(speedView(27, p(60, 120))).toEqual({ kind: 'approach', stop: 'Paris' }); // près d'un arrêt : prime sur « tronçon court »
+  expect(speedView(27, p(400, 400))).toEqual({ kind: 'short' });
 });

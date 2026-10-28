@@ -1,3 +1,4 @@
+import type { SegmentProgress } from './position';
 import { RANGE, type Price, type Scale } from './stats';
 
 export type Rules = { compensation_scale: Scale[]; prices: Price[] };
@@ -51,8 +52,18 @@ export function thresholdProgress(brand: string, delay_s: number | undefined, ru
 // n'est pas une vitesse de TGV : on ne l'affiche pas comme telle.
 export const MIN_SPEED_KMH = 60;
 
-export type SpeedView = { kind: 'none' } | { kind: 'short' } | { kind: 'speed'; kmh: number };
-export function speedView(speed: number | null): SpeedView {
+// À moins de 3 min d'un arrêt, le train freine ou démarre (à 237 km/h, le freinage seul prend environ 2 min) :
+// la moyenne du tronçon ne dit rien de sa vitesse. Au-delà de +10 min annoncées sur le tronçon, il roule moins vite que prévu.
+export const NEAR_STOP_S = 180;
+export const RISING_DELAY_S = 600;
+
+export type SpeedView =
+  | { kind: 'none' } | { kind: 'approach'; stop?: string } | { kind: 'departure'; stop?: string } | { kind: 'short' }
+  | { kind: 'speed'; kmh: number; rising: boolean };
+export function speedView(speed: number | null, p?: SegmentProgress | null): SpeedView {
   if (speed === null) return { kind: 'none' };
-  return speed < MIN_SPEED_KMH ? { kind: 'short' } : { kind: 'speed', kmh: Math.round(speed) };
+  if (p && p.toArrS < NEAR_STOP_S) return { kind: 'approach', stop: p.to };
+  if (p && p.sinceDepS < NEAR_STOP_S) return { kind: 'departure', stop: p.from };
+  if (speed < MIN_SPEED_KMH) return { kind: 'short' };
+  return { kind: 'speed', kmh: Math.round(speed), rising: (p?.growthS ?? 0) >= RISING_DELAY_S };
 }
