@@ -31,14 +31,14 @@ const ms = (iso?: string) => (iso === undefined ? NaN : Date.parse(iso));
 const okCoord = (lon?: number, lat?: number): boolean => lon != null && lat != null && Number.isFinite(lon + lat);
 
 // Horaires effectifs (ms) de chaque arrêt : prévus + retard de l'arrêt (publié, sinon précédent, sinon du train ; jamais négatif).
-function effectiveTimes(train: Pick<LiveTrain, 'stops' | 'delay_s'>): { arr: number; dep: number }[] {
+function effectiveTimes(train: Pick<LiveTrain, 'stops' | 'delay_s'>): { arr: number; dep: number; delay: number }[] {
   let delay = Math.max(train.delay_s ?? 0, 0);
   return train.stops.map((st) => {
     if (st.delay_s != null) delay = Math.max(st.delay_s, 0);
     const d = delay * 1000;
     const arr = (Number.isFinite(ms(st.arr)) ? ms(st.arr) : ms(st.dep)) + d;
     const dep = (Number.isFinite(ms(st.dep)) ? ms(st.dep) : ms(st.arr)) + d;
-    return { arr, dep };
+    return { arr, dep, delay };
   });
 }
 
@@ -88,13 +88,8 @@ function lengthKm(line: Lngl[]): number {
 // Au-delà, l'horaire ou le tracé du tronçon est douteux : on n'affiche pas de vitesse.
 const MAX_PLAUSIBLE_KMH = 330;
 
-// Vitesse moyenne prévue du tronçon en cours (longueur du tracé / durée départ-arrivée prévue) ; le retard décale les
-// horaires sans la changer. Seulement en route : null à l'arrêt, arrivé, supprimé ou si le tronçon est inconnu.
-export function segmentSpeedKmh(
-  train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>,
-  now: Date,
-  path: (a: Lngl, b: Lngl) => Lngl[] = segment,
-): number | null {
+// Tronçon en cours (celui qui encadre l'heure) et retard retenu à chaque bout ; null à l'arrêt, arrivé, supprimé ou inconnu.
+function activeSegment(train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>, now: Date) {
   const { stops } = train;
   if (train.cancelled || stops.length < 2) return null;
   const eff = effectiveTimes(train);
@@ -103,12 +98,31 @@ export function segmentSpeedKmh(
     const a = stops[i], b = stops[i + 1];
     if (!okCoord(a.lon, a.lat) || !okCoord(b.lon, b.lat) || !Number.isFinite(eff[i].dep) || !Number.isFinite(eff[i + 1].arr)) return null;
     if (t < eff[i].dep) return null;
-    if (t < eff[i + 1].arr) {
-      const hours = (eff[i + 1].arr - eff[i].dep) / 3_600_000;
-      if (hours <= 0) return null;
-      const v = lengthKm(path([a.lon!, a.lat!], [b.lon!, b.lat!])) / hours;
-      return v > MAX_PLAUSIBLE_KMH ? null : v;
-    }
+    if (t < eff[i + 1].arr) return { a, b, delayA: eff[i].delay, delayB: eff[i + 1].delay };
   }
   return null;
+}
+
+// Vitesse prévue du tronçon en cours : longueur du tracé / durée prévue (départ-arrivée, sans retard). Un retard
+// annoncé qui grossit sur le tronçon n'est pas une vitesse plus basse : il se lit à part (segmentDelayGrowthS).
+// Seulement en route : null à l'arrêt, arrivé, supprimé ou si le tronçon est inconnu.
+export function segmentSpeedKmh(
+  train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>,
+  now: Date,
+  path: (a: Lngl, b: Lngl) => Lngl[] = segment,
+): number | null {
+  const seg = activeSegment(train, now);
+  if (!seg) return null;
+  const dep = Number.isFinite(ms(seg.a.dep)) ? ms(seg.a.dep) : ms(seg.a.arr);
+  const arr = Number.isFinite(ms(seg.b.arr)) ? ms(seg.b.arr) : ms(seg.b.dep);
+  const hours = (arr - dep) / 3_600_000;
+  if (!(hours > 0)) return null;
+  const v = lengthKm(path([seg.a.lon!, seg.a.lat!], [seg.b.lon!, seg.b.lat!])) / hours;
+  return v > MAX_PLAUSIBLE_KMH ? null : v;
+}
+
+// Retard annoncé en plus (en secondes, négatif = rattrapage) entre le départ du tronçon en cours et son arrivée.
+export function segmentDelayGrowthS(train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>, now: Date): number | null {
+  const seg = activeSegment(train, now);
+  return seg ? seg.delayB - seg.delayA : null;
 }
