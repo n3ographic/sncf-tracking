@@ -98,13 +98,13 @@ function activeSegment(train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>
     const a = stops[i], b = stops[i + 1];
     if (!okCoord(a.lon, a.lat) || !okCoord(b.lon, b.lat) || !Number.isFinite(eff[i].dep) || !Number.isFinite(eff[i + 1].arr)) return null;
     if (t < eff[i].dep) return null;
-    if (t < eff[i + 1].arr) return { a, b, delayA: eff[i].delay, delayB: eff[i + 1].delay };
+    if (t < eff[i + 1].arr) return { a, b, delayA: eff[i].delay, delayB: eff[i + 1].delay, depMs: eff[i].dep, arrMs: eff[i + 1].arr };
   }
   return null;
 }
 
 // Vitesse prévue du tronçon en cours : longueur du tracé / durée prévue (départ-arrivée, sans retard). Un retard
-// annoncé qui grossit sur le tronçon n'est pas une vitesse plus basse : il se lit à part (segmentDelayGrowthS).
+// annoncé qui grossit sur le tronçon n'est pas une vitesse plus basse : il se lit à part (segmentProgress).
 // Seulement en route : null à l'arrêt, arrivé, supprimé ou si le tronçon est inconnu.
 export function segmentSpeedKmh(
   train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>,
@@ -121,8 +121,16 @@ export function segmentSpeedKmh(
   return v > MAX_PLAUSIBLE_KMH ? null : v;
 }
 
-// Retard annoncé en plus (en secondes, négatif = rattrapage) entre le départ du tronçon en cours et son arrivée.
-export function segmentDelayGrowthS(train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>, now: Date): number | null {
+// Avancement sur le tronçon en cours (horaires retardés) : temps depuis le départ, jusqu'à l'arrivée, et retard annoncé
+// en plus entre les deux bouts (négatif = rattrapage). null à l'arrêt, arrivé, supprimé ou inconnu.
+export type SegmentProgress = { from?: string; to?: string; sinceDepS: number; toArrS: number; growthS: number };
+export function segmentProgress(train: Pick<LiveTrain, 'stops' | 'delay_s' | 'cancelled'>, now: Date): SegmentProgress | null {
   const seg = activeSegment(train, now);
-  return seg ? seg.delayB - seg.delayA : null;
+  if (!seg) return null;
+  const t = now.getTime();
+  return {
+    from: seg.a.name, to: seg.b.name,
+    sinceDepS: Math.round((t - seg.depMs) / 1000), toArrS: Math.round((seg.arrMs - t) / 1000),
+    growthS: seg.delayB - seg.delayA,
+  };
 }
