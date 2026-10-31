@@ -56,6 +56,7 @@ export default async function Page() {
           <li>Flux GTFS temps réel de la SNCF (Trip Updates et Service Alertes), via <Link href="https://transport.data.gouv.fr">transport.data.gouv.fr</Link>.</li>
           <li>GTFS statique SNCF (SNCF Open Data) pour les horaires théoriques.</li>
           <li>Fichier de formes des lignes du Réseau Ferré National, SNCF Réseau, pour les tracés de la carte. Pour les paires d'arrêts que ce fichier ne couvre pas (gares étrangères, interconnexion de Marne-la-Vallée, quelques lignes régionales), tracés de <Link href="https://trainnomade.fr/donnees/">Train Nomade</Link>, d'après © contributeurs OpenStreetMap.</li>
+          <li><Link href="https://www.data.gouv.fr/datasets/vitesse-maximale-nominale-sur-ligne">Vitesse maximale nominale sur ligne</Link> (SNCF Réseau, data.gouv.fr) pour le calque VMAX de la carte.</li>
           <li><Link href="https://www.data.gouv.fr/datasets/regularite-mensuelle-tgv-par-liaisons">Régularité mensuelle TGV par liaisons</Link> (SNCF, data.gouv.fr) pour la définition de la régularité officielle.</li>
         </ul>
         <p>Ces données sont sous licence ODbL 1.0. Contient des informations de SNCF Open Data, de SNCF Réseau, de Train Nomade, des contributeurs OpenStreetMap et de transport.data.gouv.fr, sous licence ODbL.
@@ -189,6 +190,10 @@ export default async function Page() {
         <h2>Positions sur la carte</h2>
         <p>Les positions sont <strong>estimées</strong>, pas mesurées : chaque arrêt a son horaire prévu corrigé de son retard (publié, ou repris de l’arrêt précédent) ; le train reste à quai jusqu’à son départ corrigé puis avance jusqu’à l’arrivée corrigée de l’arrêt suivant,
           le long du tracé des voies lorsqu’il est connu et en ligne droite sinon. Un train dont le dernier passage du collecteur date de plus de 10 minutes est estompé (« donnée périmée »).</p>
+        <p><strong>Calque VMAX.</strong> La vitesse maximale nominale est celle que la voie autorise, publiée par SNCF Réseau : ce n’est ni la vitesse d’un train ni une vitesse mesurée,
+          et elle ignore les limitations temporaires. Le calque montre seulement les lignes que longent les tracés des TGV observés (au moins 2 km à moins de 150 m).
+          Les données datent du 24 mars 2022 ; une vitesse relevée depuis n’y figure pas. Les lignes étrangères et Perpignan–Figueras n’y sont pas, et la position des sections,
+          convertie depuis les points kilométriques, peut s’écarter un peu du tracé des voies.</p>
       </section>
 
       <section>

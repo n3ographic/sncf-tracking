@@ -28,3 +28,9 @@
 .carte-results button:hover, .carte-results button:focus-visible { background: #1a1200; }
 .carte-res-route { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-amber-dim); }
 .carte-none { padding: 3px 6px; }
+/* Sous la carte, pas dessus : l'attribution OpenStreetMap doit rester lisible. */
+.carte-vmax-legend { margin: 0; padding: 2px 8px; border-top: 1px solid var(--t-line); font-size: 10px; }
+.carte-vmax-legend p { margin: 0; }
+.carte-vmax-legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 8px; }
+.carte-vmax-legend li { display: flex; align-items: center; gap: 4px; }
+.carte-vmax-legend span { display: inline-block; width: 14px; height: 4px; }
