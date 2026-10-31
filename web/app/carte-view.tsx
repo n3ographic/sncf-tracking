@@ -160,7 +160,8 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
             visibility: vmaxVisibility, 'symbol-placement': 'line', 'symbol-spacing': 150,
             'text-field': ['to-string', ['get', 'v']], 'text-font': ['Noto Sans Regular'], 'text-size': 10,
           },
-          paint: { 'text-color': vmaxColorExpr() as never, 'text-halo-color': '#0a0a0a', 'text-halo-width': 2 },
+          // Le chiffre garde l'encre du thème (comme les numéros de train) : la couleur porte la plage, pas le texte.
+          paint: { 'text-color': '#ffb000', 'text-halo-color': '#0a0a0a', 'text-halo-width': 2 },
         });
         applyVmaxRef.current();
         m.addSource('trains', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
