@@ -10,11 +10,14 @@ import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from
 import { estimatePosition, segmentSpeedKmh, type Lngl } from '../lib/position';
 import { searchTrains } from '../lib/train-search';
 import { delayTone, type Tone } from '../lib/terminal-model';
+import { VMAX_BANDS, vmaxColorExpr, vmaxText, type VmaxProps } from '../lib/vitesses';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 // Les numéros de train s'affichent à partir de ce zoom ; en dessous, la carte reste lisible.
 // Repères : 5 = France entière (vue de départ), 6 = un grand quart de la France, 7 = une région, 8 = un département.
 const LABEL_MIN_ZOOM = 6;
+// Étiquettes de vitesse des lignes : à l'échelle d'une région, sinon elles couvrent la carte.
+const VMAX_LABEL_MIN_ZOOM = 7;
 const TONE_COLORS: Record<Tone, string> = { ontime: '#3ad13a', late: '#ffd24d', strong: '#ff8c00', severe: '#ff4d4d', cancelled: '#8a8a8a' };
 const TONE_LABELS: Record<Tone, string> = { ontime: 'À L’HEURE', late: 'RETARD', strong: 'FORT RETARD', severe: 'TRÈS FORT RETARD', cancelled: 'ANNULÉ' };
 type MapLibre = typeof import('maplibre-gl');
@@ -53,6 +56,12 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
   const applyTracksRef = useRef<() => void>(() => {});
   const [hasTracks, setHasTracks] = useState(false);
   const [showTracks, setShowTracks] = useState(true);
+  // Calque des vitesses maximales : désactivé par défaut, fichier chargé seulement au premier affichage.
+  const showVmaxRef = useRef(false);
+  const vmaxRef = useRef<unknown>(null);
+  const applyVmaxRef = useRef<() => void>(() => {});
+  const [showVmax, setShowVmax] = useState(false);
+  const [vmaxDate, setVmaxDate] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const pathRef = useRef<((a: Lngl, b: Lngl) => Lngl[]) | undefined>(undefined);
   const onSelectRef = useRef(onSelect);
@@ -86,6 +95,10 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
     applyTracksRef.current = () => {
       const src = map?.getSource('voies') as { setData(d: unknown): void } | undefined;
       if (src && tracksRef.current) src.setData(tracksRef.current);
+    };
+    applyVmaxRef.current = () => {
+      const src = map?.getSource('vmax') as { setData(d: unknown): void } | undefined;
+      if (src && vmaxRef.current) src.setData(vmaxRef.current);
     };
     const refresh = () => {
       const src = map?.getSource('trains') as { setData(d: unknown): void } | undefined;
@@ -134,6 +147,22 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
           paint: { 'line-color': '#7a5200', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 9, 2], 'line-opacity': 0.9 },
         });
         applyTracksRef.current();
+        const vmaxVisibility = showVmaxRef.current ? 'visible' : 'none';
+        m.addSource('vmax', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        m.addLayer({
+          id: 'vmax', type: 'line', source: 'vmax',
+          layout: { visibility: vmaxVisibility, 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': vmaxColorExpr() as never, 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 1.5, 9, 4] },
+        });
+        m.addLayer({
+          id: 'vmax-labels', type: 'symbol', source: 'vmax', minzoom: VMAX_LABEL_MIN_ZOOM,
+          layout: {
+            visibility: vmaxVisibility, 'symbol-placement': 'line', 'symbol-spacing': 150,
+            'text-field': ['to-string', ['get', 'v']], 'text-font': ['Noto Sans Regular'], 'text-size': 10,
+          },
+          paint: { 'text-color': vmaxColorExpr() as never, 'text-halo-color': '#0a0a0a', 'text-halo-width': 2 },
+        });
+        applyVmaxRef.current();
         m.addSource('trains', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         m.addLayer({
           id: 'trains', type: 'circle', source: 'trains',
@@ -155,6 +184,21 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
           const t = trainsRef.current.find((x) => x.trip_id === id);
           if (t) openPopup(t, [e.lngLat.lng, e.lngLat.lat]);
         });
+        // Clic sur une ligne : sa vitesse nominale. Un train sous le clic a la priorité (il ouvre sa fiche).
+        m.on('click', 'vmax', (e) => {
+          if (m.queryRenderedFeatures(e.point, { layers: ['trains'] }).length) return;
+          const p = e.features?.[0]?.properties as VmaxProps | undefined;
+          if (!p) return;
+          const el = document.createElement('div');
+          el.className = 'popup';
+          const title = document.createElement('p');
+          title.className = 'popup-title';
+          title.textContent = vmaxText(p);
+          el.append(title);
+          new maplibregl.Popup({ maxWidth: '260px' }).setLngLat(e.lngLat).setDOMContent(el).addTo(m);
+        });
+        m.on('mouseenter', 'vmax', () => { m.getCanvas().style.cursor = 'pointer'; });
+        m.on('mouseleave', 'vmax', () => { m.getCanvas().style.cursor = ''; });
         m.on('mouseenter', 'trains', () => { m.getCanvas().style.cursor = 'pointer'; });
         m.on('mouseleave', 'trains', () => { m.getCanvas().style.cursor = ''; });
         refresh();
@@ -191,6 +235,28 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
     const m = mapRef.current;
     if (m?.getLayer('voies')) m.setLayoutProperty('voies', 'visibility', showTracks ? 'visible' : 'none');
   }, [showTracks]);
+
+  // Case « VMAX » : visibilité des deux couches ; le fichier n'est demandé qu'au premier affichage.
+  useEffect(() => {
+    showVmaxRef.current = showVmax;
+    const m = mapRef.current;
+    for (const id of ['vmax', 'vmax-labels']) if (m?.getLayer(id)) m.setLayoutProperty(id, 'visibility', showVmax ? 'visible' : 'none');
+    if (!showVmax || vmaxRef.current) return;
+    vmaxRef.current = { type: 'FeatureCollection', features: [] }; // une seule requête, même si la case est rebasculée
+    (async () => {
+      try {
+        const r = await fetch('/vitesses-lignes.json');
+        const fc = (await r.json()) as { features?: unknown[]; modified?: string | null };
+        if (r.ok && Array.isArray(fc.features)) {
+          vmaxRef.current = fc;
+          setVmaxDate(fc.modified ?? null);
+          applyVmaxRef.current();
+        }
+      } catch {
+        /* calque vide : la case reste sans effet */
+      }
+    })();
+  }, [showVmax]);
 
   // Tracés des voies : chargés une fois ; sans eux (échec, contenu invalide) les trains avancent en ligne droite.
   useEffect(() => {
@@ -258,9 +324,21 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
               <input type="checkbox" checked={showTracks} onChange={(e) => setShowTracks(e.target.checked)} /> VOIES
             </label>
           )}
+          <label>
+            <input type="checkbox" checked={showVmax} onChange={(e) => setShowVmax(e.target.checked)} /> VMAX
+          </label>
         </div>
       </div>
       <div ref={container} className="carte-map" />
+      {showVmax && (
+        <div className="carte-vmax-legend" aria-label="Légende des vitesses maximales nominales">
+          <ul>
+            <li>VMAX KM/H</li>
+            {VMAX_BANDS.map((b) => <li key={b.from}><span style={{ background: b.color }} />{b.label}</li>)}
+          </ul>
+          <p className="term-dim">SNCF RÉSEAU{vmaxDate ? `, DONNÉES DU ${vmaxDate.split('-').reverse().join('/')}` : ''}</p>
+        </div>
+      )}
       {overlay}
       {failed && (
         <p className="carte-banner" role="status">
