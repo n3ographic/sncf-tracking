@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { buildGraph, haversineM, simplify, traceBetween, type Lngl, type Troncon } from './lib/rail-graph.ts'
 import { pairKey } from './lib/pair-key.ts'
-import { indexTroncons, tronconFor, uicOf } from './lib/troncons-tn.ts'
+import { indexTroncons, tronconFor, tronconThrough, uicOf } from './lib/troncons-tn.ts'
 
 const SOURCE = 'https://data.sncf.com/api/explore/v2.1/catalog/datasets/formes-des-lignes-du-rfn/exports/geojson'
 const CACHE = 'tmp/formes-rfn.geojson'
@@ -93,7 +93,8 @@ for (const p of pairs) {
   if (owner.has(k)) { rejected.collision++; continue } // deux paires d'arrêts aux mêmes coordonnées arrondies
   let t = traceBetween(graph, a, b)
   if (!Array.isArray(t)) {
-    const tn = tronconFor(trainNomade, uicOf(ida), uicOf(idb), a, b)
+    // Paire absente de Train Nomade (ex. Turin Porta Susa → Milan) : morceau d'un tronçon qui passe par les deux gares.
+    const tn = tronconFor(trainNomade, uicOf(ida), uicOf(idb), a, b) ?? tronconThrough(trainNomade, a, b)
     if (!tn) {
       rejected[t.reason]++
       if (t.reason === 'unsnapped') unsnapped.add(`${sa.stop_id} / ${sb.stop_id}`)
