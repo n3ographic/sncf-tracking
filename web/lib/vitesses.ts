@@ -1,5 +1,4 @@
-// Calque « vitesse maximale nominale » (SNCF Réseau) : plages de couleur et texte du clic.
-export type VmaxProps = { v: number; ligne: string; pkd: string; pkf: string };
+// Calque « vitesse maximale nominale » (SNCF Réseau) : plages de couleur.
 
 // 160 : grande vitesse sur ligne classique ; 220 : entrée et sortie de LGV ; 300 : pleine LGV. Du sombre à l'ambre vif.
 export const VMAX_BANDS = [
@@ -12,9 +11,4 @@ export const VMAX_BANDS = [
 
 export function vmaxColorExpr(): unknown[] {
   return ['step', ['get', 'v'], VMAX_BANDS[0].color, ...VMAX_BANDS.slice(1).flatMap((b) => [b.from, b.color])];
-}
-
-export function vmaxText(p: VmaxProps): string {
-  const pk = p.pkd && p.pkf ? ` · PK ${p.pkd} → ${p.pkf}` : '';
-  return `LIGNE ${p.ligne} · ${p.v} KM/H${pk}`;
 }

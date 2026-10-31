@@ -3,8 +3,8 @@ import { parseVmax, selectLines, toWebFeatures, type VmaxFeature } from '../scri
 import type { Lngl } from '../scripts/lib/rail-graph.ts'
 
 // Autour de 47° N : 0,01° de longitude ≈ 760 m, 0,01° de latitude ≈ 1 110 m.
-const f = (code: string, v: string, coordinates: Lngl[], pkd = '000+000', pkf = '010+000'): VmaxFeature =>
-  ({ properties: { code_ligne: code, v_max: v, pkd, pkf }, geometry: { type: 'LineString', coordinates } })
+const f = (code: string, v: string, coordinates: Lngl[]): VmaxFeature =>
+  ({ properties: { code_ligne: code, v_max: v }, geometry: { type: 'LineString', coordinates } })
 const lgv: Lngl[] = [[2.0, 47.0], [2.05, 47.0], [2.1, 47.0]] // ~7,6 km d'ouest en est
 const trace: Lngl[] = [[2.0, 47.0005], [2.1, 47.0005]] // parallèle à ~55 m, deux sommets seulement
 
@@ -38,8 +38,8 @@ test('selectLines : le recoupement se cumule sur toutes les sections d’une mê
   expect(selectLines([a], [trace], { minKm: 2 })).toEqual(new Set())
 })
 
-test('toWebFeatures : seules les lignes gardées, toutes leurs sections, propriétés courtes et coordonnées arrondies', () => {
-  const kept = f('752000', '300', [[2.000012, 47.000049], [2.05, 47.0], [2.1, 47.000001]], '226+940', '255+913')
+test('toWebFeatures : seules les lignes gardées, toutes leurs sections, vitesse seule et coordonnées arrondies', () => {
+  const kept = f('752000', '300', [[2.000012, 47.000049], [2.05, 47.0], [2.1, 47.000001]])
   const sibling = f('752000', '270', [[2.1, 47.0], [2.2, 47.0]]) // loin du tracé, mais même ligne
   const other = f('470000', '160', [[3.0, 48.0], [3.1, 48.0]])
   const bad = f('752000', 'NC', [[2.0, 47.0], [2.1, 47.0]])
@@ -47,7 +47,7 @@ test('toWebFeatures : seules les lignes gardées, toutes leurs sections, propri�
   expect(fc.features).toHaveLength(2)
   expect(fc.features[0]).toEqual({
     type: 'Feature',
-    properties: { v: 300, ligne: '752000', pkd: '226+940', pkf: '255+913' },
+    properties: { v: 300 },
     geometry: { type: 'LineString', coordinates: [[2.0, 47.0], [2.1, 47.0]] },
   })
   expect(fc.features[1].properties.v).toBe(270)

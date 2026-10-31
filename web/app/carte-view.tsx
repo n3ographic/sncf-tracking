@@ -10,7 +10,7 @@ import { makeSegment, tracesToLines, type LineCollection, type TraceTable } from
 import { estimatePosition, segmentSpeedKmh, type Lngl } from '../lib/position';
 import { searchTrains } from '../lib/train-search';
 import { delayTone, type Tone } from '../lib/terminal-model';
-import { VMAX_BANDS, vmaxColorExpr, vmaxText, type VmaxProps } from '../lib/vitesses';
+import { VMAX_BANDS, vmaxColorExpr } from '../lib/vitesses';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 // Les numéros de train s'affichent à partir de ce zoom ; en dessous, la carte reste lisible.
@@ -184,21 +184,6 @@ export default function CarteView({ trains, failed, lastOk, focus, selected, onS
           const t = trainsRef.current.find((x) => x.trip_id === id);
           if (t) openPopup(t, [e.lngLat.lng, e.lngLat.lat]);
         });
-        // Clic sur une ligne : sa vitesse nominale. Un train sous le clic a la priorité (il ouvre sa fiche).
-        m.on('click', 'vmax', (e) => {
-          if (m.queryRenderedFeatures(e.point, { layers: ['trains'] }).length) return;
-          const p = e.features?.[0]?.properties as VmaxProps | undefined;
-          if (!p) return;
-          const el = document.createElement('div');
-          el.className = 'popup';
-          const title = document.createElement('p');
-          title.className = 'popup-title';
-          title.textContent = vmaxText(p);
-          el.append(title);
-          new maplibregl.Popup({ maxWidth: '260px' }).setLngLat(e.lngLat).setDOMContent(el).addTo(m);
-        });
-        m.on('mouseenter', 'vmax', () => { m.getCanvas().style.cursor = 'pointer'; });
-        m.on('mouseleave', 'vmax', () => { m.getCanvas().style.cursor = ''; });
         m.on('mouseenter', 'trains', () => { m.getCanvas().style.cursor = 'pointer'; });
         m.on('mouseleave', 'trains', () => { m.getCanvas().style.cursor = ''; });
         refresh();

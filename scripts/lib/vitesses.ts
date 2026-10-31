@@ -2,12 +2,12 @@
 import { haversineM, simplify, type Lngl } from './rail-graph.ts'
 
 export type VmaxFeature = {
-  properties: { code_ligne: string; v_max: string | null; pkd: string | null; pkf: string | null }
+  properties: { code_ligne: string; v_max: string | null }
   geometry: { type: string; coordinates: Lngl[] } | null
 }
 export type WebFeature = {
   type: 'Feature'
-  properties: { v: number; ligne: string; pkd: string; pkf: string }
+  properties: { v: number }
   geometry: { type: 'LineString'; coordinates: Lngl[] }
 }
 
@@ -66,7 +66,7 @@ export function toWebFeatures(features: VmaxFeature[], keep: Set<string>, tolera
     const v = parseVmax(f.properties.v_max)
     if (v === null || f.geometry?.type !== 'LineString' || !keep.has(f.properties.code_ligne)) continue
     const coordinates = simplify(f.geometry.coordinates, toleranceM).map(([x, y]) => [Math.round(x * 1e4) / 1e4, Math.round(y * 1e4) / 1e4] as Lngl)
-    out.push({ type: 'Feature', properties: { v, ligne: f.properties.code_ligne, pkd: f.properties.pkd ?? '', pkf: f.properties.pkf ?? '' }, geometry: { type: 'LineString', coordinates } })
+    out.push({ type: 'Feature', properties: { v }, geometry: { type: 'LineString', coordinates } })
   }
   return { type: 'FeatureCollection', features: out }
 }
