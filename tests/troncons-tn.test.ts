@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { indexTroncons, tronconFor, uicOf } from '../scripts/lib/troncons-tn.ts'
+import { indexTroncons, tronconFor, tronconThrough, uicOf } from '../scripts/lib/troncons-tn.ts'
 import type { Lngl } from '../scripts/lib/rail-graph.ts'
 
 // Autour de 47° N : 0,01° de longitude ≈ 760 m.
@@ -33,4 +33,21 @@ test('tracé plus de deux fois plus long que le vol d’oiseau : refusé', () =>
 
 test('géométrie à moins de deux points : ignorée', () => {
   expect(indexTroncons([feature('87000001', '87000002', [[2.0, 47.0]])]).size).toBe(0)
+})
+
+// Turin Porta Susa → Milan : Train Nomade n'a que Porta Nuova → Milan, qui passe par Porta Susa.
+const through = indexTroncons([feature('87000010', '87000011', [[2.0, 47.0], [2.05, 47.0], [2.1, 47.0], [2.2, 47.0]])])
+
+test('tronconThrough : morceau d’un tronçon passant près des deux gares, dans le sens demandé', () => {
+  expect(tronconThrough(through, [2.05, 47.0005], [2.2, 47.0])).toEqual([[2.05, 47.0], [2.1, 47.0], [2.2, 47.0]])
+  expect(tronconThrough(through, [2.2, 47.0], [2.05, 47.0005])).toEqual([[2.2, 47.0], [2.1, 47.0], [2.05, 47.0]])
+})
+
+test('tronconThrough : gare à plus de 500 m de tout tronçon : null', () => {
+  expect(tronconThrough(through, [2.05, 47.01], [2.2, 47.0])).toBeNull() // ≈ 1,1 km au nord
+})
+
+test('tronconThrough : morceau plus de deux fois plus long que le vol d’oiseau : null', () => {
+  const loop = indexTroncons([feature('87000010', '87000011', [[2.0, 47.0], [2.05, 47.3], [2.1, 47.0]])])
+  expect(tronconThrough(loop, [2.0, 47.0], [2.1, 47.0])).toBeNull()
 })
