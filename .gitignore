@@ -8,3 +8,4 @@ web/.env*
 .vercel/
 web/*.tsbuildinfo
 .claude/settings.local.json
+.claude/handoffs/
