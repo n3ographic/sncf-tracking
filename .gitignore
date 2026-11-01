@@ -7,4 +7,4 @@ web/.next/
 web/.env*
 .vercel/
 web/*.tsbuildinfo
-.claude/
+.claude/settings.local.json
